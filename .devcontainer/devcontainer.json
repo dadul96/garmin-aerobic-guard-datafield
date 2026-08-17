@@ -1,0 +1,41 @@
+{
+  "name": "Garmin Connect IQ",
+
+  "image": "garmin-ciq-dev:ubuntu22.04",
+
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
+  "workspaceFolder": "/workspace",
+
+  "remoteUser": "root",
+
+  "runArgs": [
+    "--cap-drop=ALL",
+    "--security-opt=no-new-privileges"
+  ],
+
+  "containerEnv": {
+    "DISPLAY": "${localEnv:DISPLAY}",
+    "XAUTHORITY": "/tmp/host.Xauthority",
+    "LIBGL_ALWAYS_SOFTWARE": "1"
+  },
+
+  "mounts": [
+    "source=${localEnv:HOME}/.local/share/garmin-connectiq/sdk-manager,target=/opt/garmin/sdk-manager,type=bind,readonly",
+    "source=${localEnv:HOME}/.local/share/garmin-connectiq/state,target=/root/.Garmin/ConnectIQ,type=bind",
+    "source=${localEnv:XAUTHORITY},target=/tmp/host.Xauthority,type=bind,readonly",
+    "source=/tmp/.X11-unix,target=/tmp/.X11-unix,type=bind,readonly"
+  ],
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "garmin.monkey-c"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "fish",
+        "monkeyC.javaPath": "/usr/lib/jvm/java-17-openjdk-amd64",
+        "monkeyC.developerKeyPath": "/root/.Garmin/ConnectIQ/simulator-key.der"
+      }
+    }
+  }
+}

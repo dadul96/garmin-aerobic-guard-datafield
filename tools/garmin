@@ -1,0 +1,345 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+COMMAND="${1:-build}"
+
+PROJECT_ROOT="$(
+    cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." &&
+    pwd
+)"
+
+resolve_garmin_state() {
+    if [[ -n "${GARMIN_STATE:-}" ]]; then
+        printf '%s\n' "$GARMIN_STATE"
+        return
+    fi
+
+    local conventional="${XDG_DATA_HOME:-$HOME/.local/share}/garmin-connectiq/state"
+    if [[ -d "$conventional" ]]; then
+        printf '%s\n' "$conventional"
+        return
+    fi
+
+    # The graphical development container mounts Garmin's normal SDK state at
+    # this location rather than at the repository sandbox's XDG state path.
+    local user_state="$HOME/.Garmin/ConnectIQ"
+    if [[ -d "$user_state" ]]; then
+        printf '%s\n' "$user_state"
+        return
+    fi
+
+    local candidates=()
+    mapfile -t candidates < <(
+        find /home \
+            -path '*/.local/share/garmin-connectiq/state' \
+            -type d \
+            -print 2>/dev/null
+    )
+    if [[ "${#candidates[@]}" -eq 1 ]]; then
+        printf '%s\n' "${candidates[0]}"
+        return
+    fi
+
+    echo "Could not resolve Garmin state; set GARMIN_STATE explicitly." >&2
+    exit 1
+}
+
+GARMIN_STATE="$(resolve_garmin_state)"
+GARMIN_SDKS="$GARMIN_STATE/Sdks"
+GARMIN_DEVICES="$GARMIN_STATE/Devices"
+GARMIN_DEVICE="${GARMIN_DEVICE:-edge840}"
+SUPPORTED_DEVICES=(edge540 edge550 edge840 edge850 edge1040 edge1050)
+CLEANUP_PATHS=()
+GARMIN_COMMAND_HOME=""
+
+cleanup() {
+    local path
+    for path in "${CLEANUP_PATHS[@]}"; do
+        rm -rf -- "$path"
+    done
+}
+
+trap cleanup EXIT
+
+find_mounted_sdk() {
+    find "$GARMIN_SDKS" \
+        -mindepth 1 \
+        -maxdepth 1 \
+        -type d \
+        -print \
+    | sort -V \
+    | tail -n 1
+}
+
+prepare_writable_sdk() {
+    local source_sdk
+    local cache_root
+    local destination
+    local temporary
+
+    source_sdk="$(find_mounted_sdk)"
+
+    if [[ -z "$source_sdk" ]]; then
+        echo "No mounted Garmin SDK found." >&2
+        exit 1
+    fi
+
+    cache_root="$HOME/.local/share/garmin-codex/Sdks"
+    destination="$cache_root/$(basename "$source_sdk")"
+
+    if [[ ! -x "$destination/bin/monkeyc" ]]; then
+        echo "Creating sandbox-local Garmin SDK copy..."
+
+        mkdir -p "$cache_root"
+
+        temporary="$cache_root/.copy-$(basename "$source_sdk")-$$"
+        rm -rf -- "$temporary"
+        mkdir -p "$temporary"
+
+        cp -a "$source_sdk/." "$temporary/"
+        chmod -R u+rwX "$temporary"
+
+        mv -- "$temporary" "$destination"
+    fi
+
+    SDK="$destination"
+}
+
+prepare_state() {
+    local sdk_name
+    local connectiq_state
+
+    sdk_name="$(basename "$SDK")"
+    GARMIN_COMMAND_HOME="$(mktemp -d)"
+    CLEANUP_PATHS+=("$GARMIN_COMMAND_HOME")
+    connectiq_state="$GARMIN_COMMAND_HOME/.Garmin/ConnectIQ"
+
+    mkdir -p "$connectiq_state/Sdks"
+
+    ln -sfn "$SDK" \
+        "$connectiq_state/Sdks/$sdk_name"
+    # The compiler does not discover device definitions through a symlinked
+    # Devices root, so stage the small read-only definitions in isolated state.
+    mkdir -p "$connectiq_state/Devices"
+    cp -R --no-preserve=ownership,mode,timestamps \
+        "$GARMIN_DEVICES/." "$connectiq_state/Devices/"
+
+    printf '%s\n' "$SDK" \
+        > "$connectiq_state/current-sdk.cfg"
+}
+
+run_monkeyc() {
+    HOME="$GARMIN_COMMAND_HOME" \
+        JAVA_TOOL_OPTIONS="-Duser.home=$GARMIN_COMMAND_HOME ${JAVA_TOOL_OPTIONS:-}" \
+        "$SDK/bin/monkeyc" "$@"
+}
+
+doctor() {
+    command -v java >/dev/null || {
+        echo "Java is not installed in the sandbox." >&2
+        exit 1
+    }
+
+    command -v openssl >/dev/null || {
+        echo "OpenSSL is not installed in the sandbox." >&2
+        exit 1
+    }
+
+    test -d "$GARMIN_SDKS" || {
+        echo "Missing SDK mount: $GARMIN_SDKS" >&2
+        exit 1
+    }
+
+    test -d "$GARMIN_DEVICES" || {
+        echo "Missing device mount: $GARMIN_DEVICES" >&2
+        exit 1
+    }
+
+    prepare_writable_sdk
+
+    test -n "$SDK" || {
+        echo "No installed Garmin SDK found." >&2
+        exit 1
+    }
+
+    test -x "$SDK/bin/monkeyc" || {
+        echo "monkeyc is not executable: $SDK/bin/monkeyc" >&2
+        exit 1
+    }
+
+    prepare_state
+
+    java -version
+    run_monkeyc --version
+
+    find "$GARMIN_DEVICES" \
+        -type d \
+        -iname "$GARMIN_DEVICE" \
+        -print \
+        -quit |
+        grep -q . || {
+            echo "Device definition not found: $GARMIN_DEVICE" >&2
+            exit 1
+        }
+
+    echo
+    echo "Garmin build environment is ready."
+    echo "SDK: $SDK"
+}
+
+build() {
+    local include_tests="${1:-false}"
+    doctor
+
+    TMP_DIRECTORY="$(mktemp -d)"
+    CLEANUP_PATHS+=("$TMP_DIRECTORY")
+
+    openssl genrsa \
+        -out "$TMP_DIRECTORY/simulator-key.pem" \
+        4096 >/dev/null 2>&1
+
+    openssl pkcs8 \
+        -topk8 \
+        -inform PEM \
+        -outform DER \
+        -in "$TMP_DIRECTORY/simulator-key.pem" \
+        -out "$TMP_DIRECTORY/simulator-key.der" \
+        -nocrypt
+
+    mkdir -p "$PROJECT_ROOT/bin"
+
+    local output="$PROJECT_ROOT/bin/app.prg"
+    local test_flag=()
+    if [[ "$include_tests" == true ]]; then
+        output="$PROJECT_ROOT/bin/tests.prg"
+        test_flag=(-t)
+    fi
+
+    run_monkeyc \
+        "${test_flag[@]}" \
+        -d "$GARMIN_DEVICE" \
+        -w \
+        --build-stats 0 \
+        -f "$PROJECT_ROOT/monkey.jungle" \
+        -o "$output" \
+        -y "$TMP_DIRECTORY/simulator-key.der"
+
+    test -f "$output"
+    echo "Created: $output"
+}
+
+matrix() {
+    local device
+    local missing=0
+    for device in "${SUPPORTED_DEVICES[@]}"; do
+        if ! find "$GARMIN_DEVICES" -type d -iname "$device" -print -quit |
+            grep -q .; then
+            echo "Missing device definition: $device" >&2
+            missing=1
+        fi
+    done
+    (( missing == 0 )) || exit 1
+    for device in "${SUPPORTED_DEVICES[@]}"; do
+        echo "Building $device (compiler build statistics follow)"
+        GARMIN_DEVICE="$device" "$0" build
+        cp "$PROJECT_ROOT/bin/app.prg" "$PROJECT_ROOT/bin/app-$device.prg"
+    done
+}
+
+package_app() {
+    local mode="$1"
+    local version="${2:-}"
+    local key="${GARMIN_DEVELOPER_KEY:-}"
+    local package_manifest="$PROJECT_ROOT/manifest.xml"
+    local package_jungle="$PROJECT_ROOT/monkey.jungle"
+    local package_name="${GARMIN_PACKAGE_NAME:-$(basename "$PROJECT_ROOT")}"
+    local temporary=""
+    [[ "$package_name" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || {
+        echo "GARMIN_PACKAGE_NAME must contain only letters, numbers, dots, underscores, or hyphens." >&2
+        exit 2
+    }
+    [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+        echo "Version must use MAJOR.MINOR.PATCH." >&2; exit 2;
+    }
+    [[ -n "$key" && -f "$key" ]] || {
+        echo "Set GARMIN_DEVELOPER_KEY to an existing external key file." >&2
+        exit 1
+    }
+    doctor
+    mkdir -p "$PROJECT_ROOT/dist"
+    if [[ "$mode" == beta ]]; then
+        local beta_uuid="${GARMIN_BETA_UUID:-}"
+        local production_uuid
+        [[ "$beta_uuid" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]] || {
+            echo "Set GARMIN_BETA_UUID to the new app's beta UUID." >&2
+            exit 1
+        }
+        production_uuid="$(python3 - "$PROJECT_ROOT/manifest.xml" <<'PY'
+import sys
+import xml.etree.ElementTree as ET
+
+root = ET.parse(sys.argv[1]).getroot()
+namespace = {"iq": "http://www.garmin.com/xml/connectiq"}
+application = root.find("iq:application", namespace)
+if application is None or not application.get("id"):
+    raise SystemExit("Could not read the application UUID from manifest.xml")
+print(application.get("id"))
+PY
+)"
+        [[ "$beta_uuid" != "$production_uuid" ]] || {
+            echo "GARMIN_BETA_UUID must differ from the production UUID." >&2
+            exit 1
+        }
+        temporary="$(mktemp -d)"
+        CLEANUP_PATHS+=("$temporary")
+        cp "$PROJECT_ROOT/manifest.xml" "$temporary/manifest.xml"
+        sed -i "s/$production_uuid/$beta_uuid/" \
+            "$temporary/manifest.xml"
+        package_manifest="$temporary/manifest.xml"
+        cp "$PROJECT_ROOT/monkey.jungle" "$temporary/monkey.jungle"
+        sed -i "s|^project.manifest.*|project.manifest = $package_manifest|" \
+            "$temporary/monkey.jungle"
+        printf '%s\n' \
+            "base.sourcePath = $PROJECT_ROOT/source" \
+            "base.resourcePath = $PROJECT_ROOT/resources" \
+            >> "$temporary/monkey.jungle"
+        package_jungle="$temporary/monkey.jungle"
+    fi
+    run_monkeyc -e -r -w --build-stats 0 \
+        -f "$package_jungle" \
+        -o "$PROJECT_ROOT/dist/${package_name}-${version}${mode:+-$mode}.iq" -y "$key"
+    echo "Created dist/${package_name}-${version}${mode:+-$mode}.iq"
+}
+
+clean() {
+    rm -rf -- "$PROJECT_ROOT/bin"
+    echo "Removed bin/"
+}
+
+case "$COMMAND" in
+    doctor)
+        doctor
+        ;;
+    build)
+        build
+        ;;
+    test)
+        build true
+        ;;
+    matrix)
+        matrix
+        ;;
+    package)
+        package_app "" "${2:-}"
+        ;;
+    package-beta)
+        package_app beta "${2:-}"
+        ;;
+    clean)
+        clean
+        ;;
+    *)
+        echo "Usage: $0 {doctor|build|test|matrix|package VERSION|package-beta VERSION|clean}" >&2
+        exit 2
+        ;;
+esac

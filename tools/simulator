@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$repo_dir"
+
+device="edge840"
+case "${1:-}" in
+    ""|--840|edge840) device="edge840" ;;
+    --540|edge540) device="edge540" ;;
+    --550|edge550) device="edge550" ;;
+    --850|edge850) device="edge850" ;;
+    --1040|edge1040) device="edge1040" ;;
+    --1050|edge1050) device="edge1050" ;;
+    -h|--help)
+        echo "Usage: $0 [--540|--550|--840|--850|--1040|--1050]"
+        exit 0
+        ;;
+    *)
+        echo "Unknown device: $1" >&2
+        echo "Usage: $0 [--540|--550|--840|--850|--1040|--1050]" >&2
+        exit 2
+        ;;
+esac
+if [[ "$#" -gt 1 ]]; then
+    echo "Only one device may be selected." >&2
+    exit 2
+fi
+
+GARMIN_DEVICE="$device" ./tools/garmin build
+
+sdk_config="$HOME/.Garmin/ConnectIQ/current-sdk.cfg"
+if [[ ! -f "$sdk_config" ]]; then
+    echo "Missing SDK configuration: $sdk_config" >&2
+    exit 1
+fi
+
+CIQ_SDK_HOME="$(tr -d '\r\n' < "$sdk_config")"
+export CIQ_SDK_HOME
+export PATH="$CIQ_SDK_HOME/bin:$PATH"
+
+if [[ -z "${DISPLAY:-}" ]]; then
+    echo "DISPLAY is not set; run this inside the graphical VS Code container." >&2
+    exit 1
+fi
+if [[ ! -d "$CIQ_SDK_HOME" ]]; then
+    echo "Configured SDK directory does not exist: $CIQ_SDK_HOME" >&2
+    exit 1
+fi
+for command_name in connectiq monkeydo; do
+    if ! command -v "$command_name" >/dev/null 2>&1; then
+        echo "Missing Garmin command: $command_name" >&2
+        exit 1
+    fi
+done
+if [[ ! -f bin/app.prg ]]; then
+    echo "Build completed without creating bin/app.prg" >&2
+    exit 1
+fi
+
+nohup connectiq >/tmp/connectiq.log 2>&1 </dev/null &
+simulator_pid=$!
+echo "Connect IQ simulator PID: $simulator_pid"
+echo "Simulator log: /tmp/connectiq.log"
+
+for attempt in $(seq 1 30); do
+    if ! kill -0 "$simulator_pid" 2>/dev/null; then
+        echo "Connect IQ simulator exited before the app could be loaded." >&2
+        echo "See /tmp/connectiq.log for details." >&2
+        exit 1
+    fi
+    if monkeydo bin/app.prg "$device" >/tmp/monkeydo.log 2>&1; then
+        echo "Loaded bin/app.prg on $device."
+        echo "The simulator will remain running."
+        exit 0
+    fi
+    sleep 1
+done
+
+echo "Timed out loading bin/app.prg on $device." >&2
+echo "See /tmp/connectiq.log and /tmp/monkeydo.log for details." >&2
+exit 1

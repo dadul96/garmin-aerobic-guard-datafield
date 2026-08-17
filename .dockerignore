@@ -1,0 +1,14 @@
+.git
+bin
+dist
+release
+*.prg
+*.iq
+*.barrel
+*.der
+*.pem
+*.key
+developer_key*
+secrets
+.env
+.env.*

@@ -1,0 +1,25 @@
+# Garmin build output
+bin/
+dist/
+release/
+*.prg
+*.iq
+*.barrel
+
+# Keys and secrets
+*.der
+*.pem
+*.key
+developer_key*
+secrets/
+.env
+.env.*
+
+# Logs and temporary files
+*.log
+core.*
+.DS_Store
+__pycache__/
+
+# Local ride recordings and notes
+fit-files/

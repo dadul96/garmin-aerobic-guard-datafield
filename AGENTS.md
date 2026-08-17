@@ -1,0 +1,487 @@
+# Aerobic Guard — AGENTS.md
+
+## Project overview
+
+Aerobic Guard is a Connect IQ **Data Field** for long aerobic / endurance cycling rides. It is not a workout player and must not attempt to replace Garmin's native structured-workout experience.
+
+The initial product target is **Garmin Edge 840** with **Connect IQ API 6.0.0 or newer**. Other devices may be considered later, but do not broaden declared product support unless explicitly requested.
+
+The product goal is simple:
+
+> Help the rider stay inside a sustainable aerobic envelope by showing live power, a heart-rate ceiling, cadence guidance, live aerobic-drift context, cumulative carbohydrate target, speed, and elapsed time on one calm, glanceable page.
+
+Prefer an opinionated endurance-specific experience over a generic configurable cycling dashboard.
+
+## Product contract
+
+### Core metrics
+
+Aerobic Guard uses these live activity values when available:
+
+- Power: `Activity.Info.currentPower`
+- Heart rate: `Activity.Info.currentHeartRate`
+- Cadence: `Activity.Info.currentCadence`
+- Speed: `Activity.Info.currentSpeed`
+- Elapsed activity time: `Activity.Info.elapsedTime`
+- Recording/timer state when needed to distinguish active recording from paused/off states
+
+All `Activity.Info` values may be `null`. Null handling is mandatory. Never fabricate sensor values.
+
+### Power
+
+Power guidance uses a user-configured lower and upper limit.
+
+On the first application start only, Aerobic Guard may initialize the power
+limits from Garmin's configured cycling Power Zone 2. Use one watt above the
+maximum Zone 1 threshold as the lower limit and the maximum Zone 2 threshold as
+the upper limit. If Garmin returns no valid zone thresholds but supplies a
+positive cycling FTP, fall back to Garmin's standard Zone 2 percentages: round
+the 56% FTP lower boundary upward and the 75% FTP upper boundary downward to
+whole watts. If neither source is valid, leave both limits at zero. Persist
+completion of this initialization attempt and never automatically overwrite or
+recalculate the limits afterward.
+
+An existing installation affected by the original validator bug may perform
+versioned corrective power-only import attempts. Run each only when both stored power
+limits remain zero, persist a separate completion flag, and never overwrite a
+non-zero rider setting. These migrations exist solely because the original
+validator made unsupported assumptions about unused power-zone array elements
+and did not yet support the approved FTP fallback.
+
+The displayed power value must be **raw 1-second/current power**. Do not smooth the displayed power value.
+
+Coaching logic may use a short persistence delay so a single one-second spike does not cause the coaching header to flicker. The default power warning delay is 5 seconds unless changed by product requirements.
+
+### Heart rate
+
+Heart rate guidance is **ceiling-only**.
+
+- The user configures one HR ceiling.
+- There is no lower HR target.
+- Aerobic Guard must never instruct the rider to increase heart rate.
+- HR acts as a veto on power guidance: if HR is near or above the configured ceiling, do not instruct the rider to increase power merely because power is below its target range.
+
+On the first application start only, Aerobic Guard may initialize the HR
+ceiling from Garmin's configured cycling maximum Zone 2 threshold. If valid
+zone thresholds are unavailable, leave the ceiling at zero. Persist completion
+of this initialization attempt and never automatically overwrite or
+recalculate the ceiling afterward.
+
+Use Garmin's cycling HR-zone thresholds for the HR graph drawing range:
+
+```monkeyc
+var zones = UserProfile.getHeartRateZones2(Activity.SPORT_CYCLING);
+```
+
+When a valid six-value array is returned:
+
+- graph minimum = `zones[0]` (minimum Zone 1 threshold)
+- graph maximum = `zones[5]` (maximum Zone 5 threshold)
+
+The HR graph must therefore start at Garmin's configured cycling HR minimum rather than zero. The configured Aerobic Guard HR ceiling is drawn as the important visual boundary inside that range.
+
+`getHeartRateZones2()` may return default sport zones or `null` on error. Validate the array before use. If a valid drawing range cannot be obtained, do not invent physiological HR limits. Continue to show numeric HR and the configured ceiling, and render a graceful reduced/fallback HR visualization.
+
+The current HR marker may be visually clamped to the graph endpoints while the numeric current HR remains the real value.
+
+Small Garmin zone-boundary ticks may be used if they improve readability, but the UI must not become a generic multi-zone chart. The Aerobic Guard HR ceiling remains the dominant boundary.
+
+The project needs the appropriate `UserProfile` permission to read user profile/zone information.
+
+The default HR warning persistence is 20 seconds unless changed by product requirements.
+
+### Cadence
+
+Cadence guidance uses a user-configured lower and upper limit.
+
+Cadence is advisory and lower priority than the HR ceiling and power guidance. Do not penalize or coach cadence while obviously coasting or when cadence data is unavailable.
+
+The default cadence warning persistence is 10 seconds unless changed by product requirements.
+
+On the first application start, initialize cadence guidance to 80-95 rpm and
+enable it. Preserve any existing non-zero cadence limits and never
+automatically overwrite these values afterward.
+
+### Fueling
+
+Fueling is intentionally simple. Aerobic Guard does **not** tell the rider when to eat, what to eat, or how much to eat in the current moment.
+
+The user configures a carbohydrate rate in grams per hour, for example `60 g/h`.
+
+Every completed 10-minute block, update the cumulative amount of carbohydrate that should have been consumed by that elapsed point in the ride.
+
+Use elapsed activity time (`Activity.Info.elapsedTime`) rather than timer time for this calculation unless the product requirements are explicitly changed.
+
+Calculation:
+
+```text
+completedBlocks = floor(elapsedSeconds / 600)
+carbsByNow = round(carbRateGramsPerHour * completedBlocks / 6)
+```
+
+Examples:
+
+- 60 g/h -> 10 g at 10 min, 20 g at 20 min, 60 g at 60 min
+- 80 g/h -> approximately 13 g at 10 min, 27 g at 20 min, 80 g at 60 min
+
+The preferred UI label is **CARBS BY NOW** or another equally unambiguous label.
+
+On the first application start, initialize the carbohydrate rate to 60 g/h and
+enable its display. Preserve any existing non-zero rate and never automatically
+overwrite it afterward. This is an opinionated product starting value, not an
+individualized fueling prescription.
+
+Do not implement:
+
+- fueling notifications
+- "fuel now" messages
+- serving-size recommendations
+- food logging
+- water reminders
+- hydration tracking
+
+### Aerobic drift
+
+Aerobic Guard may show a live **Drift** or **Drift Trend** value. This is live context, not a medical measurement and not a replacement for post-ride analysis in Garmin or Intervals.icu.
+
+Keep the algorithm isolated from the renderer and from the displayed 1-second power value.
+
+Initial algorithm unless explicitly changed:
+
+1. Ignore the first 15 minutes as warm-up.
+2. Build a baseline efficiency window over the next 15 minutes.
+3. Use a rolling 10-minute recent window for current efficiency.
+4. Do not display a meaningful drift percentage until at least 40 minutes of sufficiently valid data exists.
+5. Efficiency is based on the relationship between average power and average HR for a window.
+6. Drift percentage is:
+
+```text
+baselineEfficiency = baselineAveragePower / baselineAverageHeartRate
+recentEfficiency   = recentAveragePower / recentAverageHeartRate
+driftPercent       = (1 - recentEfficiency / baselineEfficiency) * 100
+```
+
+Only use valid samples. At minimum, HR and power must be present and positive and the activity must not be in a clearly invalid/stopped state. Keep validity rules explicit and testable.
+
+The default drift warning threshold is 5%, configurable by the user. Treat that threshold as a user-facing coaching threshold, not a universal physiological truth.
+
+Prefer bounded rolling aggregates/ring buffers or other memory-efficient structures. Do not retain the entire ride sample-by-sample.
+
+### Coaching state
+
+The top of the page provides one calm, actionable state rather than a composite percentage score.
+
+Expected states include:
+
+- `STEADY`
+- `EASE — HR HIGH`
+- `EASE POWER`
+- `LIFT POWER`
+- `SPIN FASTER`
+- `LOWER CADENCE`
+- sensor/data-unavailable states when necessary
+
+Base priority:
+
+1. Required sensor/data problem
+2. HR above ceiling for the configured persistence period
+3. Power above upper limit for the configured persistence period
+4. Power below lower limit, but only when HR does not veto that instruction
+5. Cadence below lower limit
+6. Cadence above upper limit
+7. `STEADY`
+
+When power is low but HR is close to the ceiling, prefer `STEADY` or a neutral HR-context message over `LIFT POWER`.
+
+Keep coaching decisions deterministic and testable. Avoid rapid state flicker.
+
+## UI and interaction
+
+Design first for a **full-screen Edge 840 data-field page**. The screen must remain useful at a glance while riding.
+
+Suggested information hierarchy:
+
+1. App name / coaching state
+2. Power value + target-range gauge
+3. HR value + ceiling gauge using Garmin cycling-zone min/max as drawing limits
+4. Cadence value + target-range gauge
+5. Drift + cumulative carbs-by-now
+6. Speed + elapsed time
+
+A conceptual layout is:
+
+```text
++----------------------------+
+|       AEROBIC GUARD        |
+|           STEADY           |
++----------------------------+
+| POWER               187 W  |
+| -------[====o====]-------  |
+|          170-200 W         |
++----------------------------+
+| HR                 137 bpm |
+| -----------o-|-----------  |
+| 92          142         184|
+|             MAX            |
++----------------------------+
+| CADENCE              89 rpm|
+| -------[===o===]---------  |
+|           82-95 rpm        |
++----------------------------+
+| DRIFT +2.1%  CARBS NOW 80 g|
+| 28.6 km/h        01:23:41  |
++----------------------------+
+```
+
+This ASCII layout is conceptual, not a pixel-perfect specification.
+
+### Visual rules
+
+- Optimize for sunlight readability and quick glances.
+- Do not rely on color alone to communicate status.
+- Keep text and markers legible at Edge 840 resolution.
+- Avoid decorative complexity.
+- The current power indicator should visibly react every second.
+- Power and cadence target gauges use 0.8 times the configured lower limit as
+  the drawing minimum and 1.2 times the configured upper limit as the drawing
+  maximum. Visually clamp current-value markers to those endpoints while
+  keeping the displayed numeric measurement unchanged.
+- HR ceiling should be visually prominent.
+- Missing sensor values must be clearly represented without misleading zeros.
+- Keep renderer/layout code separate from metric and coaching logic.
+
+## Settings
+
+Keep settings intentionally small.
+
+Expected settings:
+
+### Power
+
+- enable power guidance
+- lower power limit in watts
+- upper power limit in watts
+- power warning delay in seconds
+
+### Heart rate
+
+- enable HR guidance
+- HR ceiling in bpm
+- HR warning delay in seconds
+
+HR graph min/max are automatic from Garmin cycling zones and are not normal user settings.
+
+### Cadence
+
+- enable cadence guidance
+- lower cadence limit in rpm
+- upper cadence limit in rpm
+- cadence warning delay in seconds
+
+### Fueling
+
+- enable carbohydrate target display
+- carbohydrate rate in grams/hour
+
+### Drift
+
+- enable drift display
+- drift warning threshold in percent
+
+Do not add settings merely because they are easy to add. Prefer a small, coherent product.
+
+The custom numeric keypad must show each digit/backspace edit immediately on
+physical Edge hardware. Do not rely solely on `WatchUi.requestUpdate()` for a
+pushed data-field settings view; use an immediate top-view replacement while
+preserving the settings navigation stack when required by the device runtime.
+
+If guidance settings are not configured, the app should fail gracefully and still show the live metric where useful. Do not silently invent personalized targets.
+
+The one permitted automatic initialization is a first-start import of Garmin's
+configured cycling Power Zone 2 bounds and maximum HR Zone 2 threshold. When
+power-zone bounds are unavailable, a positive Garmin cycling FTP may instead
+initialize power Zone 2 at 56-75% FTP using the rounding rule above. Valid
+imports may enable their corresponding guidance. Preserve any existing non-zero
+targets, record that initialization was attempted even when Garmin returns no
+usable data, and never run the import again automatically.
+
+Also initialize cadence guidance once to 80-95 rpm and carbohydrate display
+once to 60 g/h. Preserve existing non-zero values and never automatically
+reapply these defaults. These are explicit product defaults rather than
+personalized targets.
+
+## Scope and non-goals
+
+Aerobic Guard is a live endurance-ride assistant.
+
+Do **not** add the following unless the product requirements explicitly change:
+
+- structured workout parsing or execution
+- Intervals.icu integration
+- Garmin workout-step integration
+- networking, cloud sync, accounts, or companion services
+- navigation
+- route handling
+- water/hydration tracking
+- automatic fueling prescriptions
+- automatic zone recalculation after the one-time first-start zone import
+- dynamic modification of the user's HR or power targets
+- generic configurable dashboard functionality unrelated to aerobic endurance
+- FIT developer fields or custom FIT recording
+
+### No FIT data
+
+Aerobic Guard must **not** use `Toybox.FitContributor` and must not create, write, or register custom FIT developer fields.
+
+Do not duplicate Garmin's existing power, HR, cadence, or post-ride analytics into custom FIT fields. Post-ride analysis belongs to Garmin and Intervals.icu.
+
+The generic repository FIT analysis tools described later in this file may be used to inspect private test recordings when necessary, but they do not imply that Aerobic Guard writes FIT developer data.
+
+## Connect IQ engineering rules
+
+- App type: Connect IQ Data Field.
+- Initial declared target: Edge 840.
+- Minimum API level: 6.0.0 or newer.
+- Use `WatchUi.DataField`, not `SimpleDataField`, because the project requires custom full-screen drawing.
+- `compute(info)` receives `Activity.Info` once per second under normal data-field operation. Keep computation bounded and lightweight.
+- Initialize state outside `compute()`. Garmin does not guarantee that `compute()` runs before `onUpdate()`.
+- Null-check all optional `Activity.Info` values.
+- Keep metric collection, coaching/state logic, drift/fueling calculations, settings, and rendering separated enough to test independently.
+- Avoid unnecessary allocations in once-per-second hot paths.
+- Prefer small fixed-size state over unbounded arrays.
+- Do not use Sensor APIs that are invalid for data fields when the needed metric is already available through `Activity.Info`.
+- Do not add permissions that are not required.
+- Do not add `ActivityControl`, `Communications`, or `FitContributor` capabilities for the current product.
+- Add the User Profile permission needed for Garmin HR-zone access.
+
+## Implementation quality
+
+- Favor small, readable Monkey C modules/classes with clear ownership.
+- Keep calculations unit-testable where the Connect IQ test framework permits it.
+- For tricky pure logic, add repository-side validators/tests when useful and wire them into `./tools/check`.
+- Comments should explain intent, constraints, or non-obvious Garmin behavior, not narrate obvious code.
+- Avoid premature framework-building. The app is deliberately small.
+- Preserve established repository conventions and wrappers.
+- Do not broaden device support while fixing unrelated issues.
+- Do not silently change the product semantics in this file. If an implementation constraint conflicts with a requirement, report the conflict.
+
+## Project documentation
+
+Durable project documentation lives under `docs/`. Start with
+`docs/README.md`, which indexes the available documents and their ownership.
+
+- `docs/ARCHITECTURE.md` describes the implemented modules, runtime data flow,
+  and important separation boundaries. Update it when module ownership, state
+  flow, memory strategy, or a major integration boundary changes.
+- `docs/DEVELOPMENT.md` describes repository commands, environment boundaries,
+  settings workflow, and the implementation checklist. Update it when wrappers,
+  supported development workflows, or configuration entry points change.
+- `docs/TESTING.md` is the operational test guide, including the automated gate,
+  test artifacts, and human simulator commands. Update it whenever tests,
+  commands, expected output, or validation responsibilities change.
+- `docs/DECISIONS.md` is the durable product and engineering decision log. Add a
+  dated entry when a meaningful choice constrains future work, resolves a
+  trade-off, deliberately defers work, or supersedes an earlier decision. State
+  the decision, rationale, and consequences. Do not rewrite history when a
+  decision changes; add a superseding entry instead. Do not use it as a task log.
+
+`AGENTS.md` remains the product and engineering source of truth. Documentation
+must not weaken or contradict it. When behavior or workflow changes, update the
+relevant documentation in the same change rather than leaving future agents to
+infer the new state from source code. Keep documentation scoped to the declared
+Edge 840 product unless broader support is explicitly approved.
+
+## Validation expectations
+
+For substantive source/resource changes:
+
+1. Run `./tools/garmin doctor` when environment health is relevant.
+2. Run the appropriate build wrapper.
+3. Run `./tools/check` before declaring the work complete.
+4. Confirm `bin/app.prg` exists after a successful Edge 840 build.
+5. Report all compiler warnings and errors, even if the build succeeds.
+6. Do not claim simulator validation unless a human actually performed it in the graphical environment.
+
+## Sandbox and build tools
+
+Garmin SDKs and device definitions are mounted read-only. The real developer
+key is unavailable in the development environment and must never be requested,
+copied, generated, logged, or committed. Use the repository wrappers instead
+of invoking the underlying Garmin tools directly.
+
+`tools/garmin` targets Edge 840 by default and supports Edge 540, 550, 840,
+850, 1040, and 1050:
+
+```text
+./tools/garmin doctor
+./tools/garmin build
+./tools/garmin matrix
+./tools/garmin clean
+```
+
+build performs environment checks, creates a temporary simulator-only key
+outside the repository, and writes bin/app.prg. matrix builds every
+supported device and writes per-device programs under bin/. Do not invoke
+monkeyc directly unless diagnosing the wrapper. Do not hard-code an SDK
+version or modify mounted SDK or device files.
+
+Production packaging requires the existing externally stored developer key:
+
+```text
+GARMIN_DEVELOPER_KEY=/external/path/developer-key.der \
+    ./tools/garmin package 1.0.0
+```
+
+Package filenames use the project directory name by default. Set
+GARMIN_PACKAGE_NAME to override that name. Private-beta packaging additionally
+requires a beta UUID belonging to the new application:
+
+```text
+GARMIN_DEVELOPER_KEY=/external/path/developer-key.der \
+GARMIN_BETA_UUID=00000000-0000-0000-0000-000000000000 \
+GARMIN_PACKAGE_NAME=example-app \
+    ./tools/garmin package-beta 1.0.0
+```
+
+Never reuse another application's production or beta UUID. The wrapper reads
+the production UUID from manifest.xml and substitutes the beta UUID only in
+temporary packaging files.
+
+./tools/simulator is only for a human using the graphical VS Code Docker
+container. It rebuilds the app, starts the Connect IQ simulator, and loads the
+selected device program. Edge 840 is the default; the other supported devices
+can be selected with --540, --550, --850, --1040, or --1050. Do not
+invoke it from Codex because the Codex sandbox does not have access to the
+required simulator and GUI toolchain. Codex must use the repository doctor,
+build, and check wrappers for command-line validation.
+
+Run the full automated gate after source, resource, or tool changes:
+
+```text
+./tools/check
+```
+
+It checks Python syntax, shell syntax, Garmin-state isolation, resource and
+manifest XML, Git whitespace errors, and the Edge 840 Garmin build. Confirm
+that bin/app.prg was produced and report every compiler warning or error.
+Add project-specific validators and tests to this gate as the application
+develops. The graphical Connect IQ simulator remains a manual step.
+
+## FIT tools and private recordings
+
+Use tools/fit_dump.py for CRC-checked generic FIT decoding and export:
+
+```text
+./tools/fit_dump.py path/to/activity.fit
+./tools/fit_dump.py path/to/activity.fit --message record --json
+./tools/fit_dump.py path/to/activity.fit --output-dir /tmp/fit-export
+```
+
+A CRC or decoding failure is an analysis failure and must be reported. If the
+new application defines its own FIT developer fields, create a project-specific
+validator and add it to tools/check; do not reuse another application's FIT
+contract or validator.
+
+Ride FIT files and related notes belong under the ignored fit-files/
+directory. They may contain location, activity, and personal sensor data.
+Never commit, publish, or copy them outside the repository.
