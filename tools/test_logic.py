@@ -240,6 +240,11 @@ class ContractTests(unittest.TestCase):
         source = pathlib.Path("source/DashboardRenderer.mc").read_text()
         self.assertNotIn('format("%d g")', source)
         self.assertIn('formatInteger(state[:carbs]) + " g"', source)
+        self.assertNotIn('"%+.1f%%"', source)
+        self.assertEqual(
+            2,
+            source.count('formatFloat(state[:drift], "%+.1f") + "%"'),
+        )
 
     def test_power_and_cadence_gauge_scale_around_target(self):
         low = 80

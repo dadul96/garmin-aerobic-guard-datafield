@@ -150,13 +150,13 @@ class DashboardRenderer {
         var driftBackground = driftHigh ? Graphics.COLOR_YELLOW : Graphics.COLOR_WHITE;
         if (settings.driftEnabled && settings.carbsEnabled) {
             contextTile(dc, 0, y, width / 2, height, driftLabel,
-                formatFloat(state[:drift], "%+.1f%%"), driftBackground);
+                formatFloat(state[:drift], "%+.1f") + "%", driftBackground);
             contextTile(dc, width / 2, y, width - width / 2, height, "CARB",
                 formatInteger(state[:carbs]) + " g", Graphics.COLOR_WHITE);
             divider(dc, width / 2, y, height);
         } else if (settings.driftEnabled) {
             contextTile(dc, 0, y, width, height, driftLabel,
-                formatFloat(state[:drift], "%+.1f%%"), driftBackground);
+                formatFloat(state[:drift], "%+.1f") + "%", driftBackground);
         } else {
             contextTile(dc, 0, y, width, height, "CARB",
                 formatInteger(state[:carbs]) + " g", Graphics.COLOR_WHITE);

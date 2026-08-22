@@ -103,7 +103,8 @@ The current Monkey C tests cover:
 - isolation of one-time default writes from settings-view startup;
 - absence of the Garmin Connect/host settings surface while property defaults
   remain available to the on-device settings view;
-- safe numeric formatting for the enabled-by-default carbohydrate display;
+- safe numeric formatting for the enabled-by-default carbohydrate and drift
+  displays, including keeping unit characters outside numeric format patterns;
 - validation of only the consumed power-zone thresholds and presence of the
   latest corrective-import migration guard;
 - the 56-75% cycling-FTP fallback and its whole-watt rounding.
