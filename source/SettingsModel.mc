@@ -5,6 +5,7 @@ class SettingsModel {
     var powerLow;
     var powerHigh;
     var powerDelay;
+    var powerAverageSeconds;
     var hrEnabled;
     var hrCeiling;
     var hrDelay;
@@ -26,6 +27,7 @@ class SettingsModel {
         powerLow = numberProperty("powerLow", 0);
         powerHigh = numberProperty("powerHigh", 0);
         powerDelay = boundedProperty("powerDelay", 5, 0, 120);
+        powerAverageSeconds = boundedProperty("powerAverageSeconds", 1, 1, 30);
         hrCeiling = numberProperty("hrCeiling", 0);
         hrEnabled = boolProperty("hrEnabled") && hrCeiling > 0;
         hrDelay = boundedProperty("hrDelay", 20, 0, 120);

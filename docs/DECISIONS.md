@@ -325,3 +325,19 @@ sensor guidance.
 **Consequences:** The existing threshold setting has a visible, deterministic
 effect at and above its boundary. Missing and below-threshold values remain
 neutral, and the numeric drift value remains unchanged.
+
+## 2026-08-23 — Offer bounded smoothing for displayed power
+
+**Decision:** Add a 1-30 second moving-average setting in the Power section,
+defaulting to 1 second. The filtered value drives both the numeric power display
+and its gauge marker. Coaching and aerobic drift continue to use raw current
+power. A missing sample clears the rolling history and is displayed as missing.
+
+**Rationale:** Riders can choose a calmer, consistently presented power signal
+without changing warning timing or the drift algorithm's sample contract.
+
+**Consequences:** The filter uses a fixed 30-sample buffer and resets when its
+window changes or current power becomes unavailable. Existing installations
+receive the backward-compatible 1-second property default. The power card shows
+the active window as `AVG Ns` beneath `PWR`, so its smoothing is visible while
+riding.

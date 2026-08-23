@@ -17,6 +17,23 @@ class TestSettings {
 }
 
 (:test)
+function testPowerMovingAverage(logger as Test.Logger) as Boolean {
+    var average = new PowerMovingAverage();
+    if (average.add(100, 3) != 100
+            || average.add(200, 3) != 150
+            || average.add(300, 3) != 200
+            || average.add(400, 3) != 300) {
+        logger.error("Power rolling average is incorrect");
+        return false;
+    }
+    if (average.add(null, 3) != null || average.add(500, 3) != 500) {
+        logger.error("Missing power did not clear the rolling average");
+        return false;
+    }
+    return average.add(501, 1) == 501;
+}
+
+(:test)
 function testCoachingPersistence(logger as Test.Logger) as Boolean {
     var engine = new CoachingEngine();
     var settings = new TestSettings();

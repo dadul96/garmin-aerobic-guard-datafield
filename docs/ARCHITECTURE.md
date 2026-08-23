@@ -58,13 +58,17 @@ State is initialized before `compute()` because Garmin does not guarantee that
   cards. Guidance cards receive twice the height of context/footer cards, and
   disabled cards receive no space.
 - `DashboardRenderer.mc`: the adaptive, full-screen Edge 840 presentation.
+- `PowerMovingAverage.mc`: bounded rolling filter used only for the displayed
+  power number and gauge marker.
 - `AerobicGuardTests.mc`: Garmin Run No Evil tests, excluded from production
   builds unless the unit-test compiler flag is used.
 
 ## Important boundaries
 
-- The displayed power value is always raw `currentPower`; coaching persistence
-  does not modify it.
+- The displayed power number and gauge marker share the configured 1-30 second
+  moving average. Coaching and drift continue to consume raw `currentPower`.
+  Missing current power clears the filter and remains visibly unavailable. The
+  power card shows the active window as `AVG Ns` beneath its `PWR` label.
 - Power and cadence gauges draw from `lower × 0.8` through `upper × 1.2` and
   clamp only their visual markers; numeric measurements remain unchanged.
 - Power, HR, and cadence guidance toggles also control riding-card visibility.
@@ -74,8 +78,8 @@ State is initialized before `compute()` because Garmin does not guarantee that
   threshold crossings. The engine exposes each persisted condition separately
   from its single prioritized coaching message, allowing simultaneous HR-high
   and power-high cards to remain red. HR-high suppresses lower-priority yellow
-  power-low and cadence cards. Raw current-value markers still update every
-  second.
+  power-low and cadence cards. Current-value markers still update every second,
+  subject to the configured power moving average.
 - HR is ceiling-only and can veto `LIFT POWER` near the ceiling.
 - Drift accepts only positive power/HR samples while the activity is running.
 - A ready drift value at or above the configured threshold highlights only the

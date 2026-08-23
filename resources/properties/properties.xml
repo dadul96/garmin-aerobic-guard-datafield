@@ -3,6 +3,7 @@
     <property id="powerLow" type="number">0</property>
     <property id="powerHigh" type="number">0</property>
     <property id="powerDelay" type="number">5</property>
+    <property id="powerAverageSeconds" type="number">1</property>
     <property id="hrEnabled" type="boolean">false</property>
     <property id="hrCeiling" type="number">0</property>
     <property id="hrDelay" type="number">20</property>

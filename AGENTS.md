@@ -48,7 +48,11 @@ non-zero rider setting. These migrations exist solely because the original
 validator made unsupported assumptions about unused power-zone array elements
 and did not yet support the approved FTP fallback.
 
-The displayed power value must be **raw 1-second/current power**. Do not smooth the displayed power value.
+The user may configure a 1-30 second moving-average filter for displayed power.
+It defaults to 1 second (raw current power). Apply the same filtered value to
+the power text and graph marker. Keep coaching and aerobic-drift calculations
+on raw current power. A missing current sample must display as unavailable and
+must not reuse an earlier average.
 
 Coaching logic may use a short persistence delay so a single one-second spike does not cause the coaching header to flicker. The default power warning delay is 5 seconds unless changed by product requirements.
 
@@ -241,7 +245,9 @@ This ASCII layout is conceptual, not a pixel-perfect specification.
 - Do not rely on color alone to communicate status.
 - Keep text and markers legible at Edge 840 resolution.
 - Avoid decorative complexity.
-- The current power indicator should visibly react every second.
+- The current power indicator should update every second using the configured
+  moving-average window.
+- Show the active moving-average window directly beneath the `PWR` label.
 - Power and cadence target gauges use 0.8 times the configured lower limit as
   the drawing minimum and 1.2 times the configured upper limit as the drawing
   maximum. Visually clamp current-value markers to those endpoints while
@@ -262,6 +268,7 @@ Expected settings:
 - lower power limit in watts
 - upper power limit in watts
 - power warning delay in seconds
+- displayed-power moving-average window in seconds (1-30, default 1)
 
 ### Heart rate
 

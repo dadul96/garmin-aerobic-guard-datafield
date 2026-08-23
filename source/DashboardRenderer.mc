@@ -30,7 +30,7 @@ class DashboardRenderer {
             drawRangeCard(dc, mLayout.powerY, mLayout.powerHeight, width,
                 "PWR", settings.powerLow.format("%d") + "-" + settings.powerHigh.format("%d"),
                 state[:power], "W", settings.powerLow, settings.powerHigh,
-                powerCardColor(state));
+                powerCardColor(state), "AVG " + settings.powerAverageSeconds.format("%d") + "s");
         }
         if (mLayout.hrHeight > 0) {
             drawHrCard(dc, mLayout.hrY, mLayout.hrHeight, width, state, settings,
@@ -40,7 +40,7 @@ class DashboardRenderer {
             drawRangeCard(dc, mLayout.cadenceY, mLayout.cadenceHeight, width,
                 "CAD", settings.cadenceLow.format("%d") + "-" + settings.cadenceHigh.format("%d"),
                 state[:cadence], "RPM", settings.cadenceLow, settings.cadenceHigh,
-                cadenceCardColor(state));
+                cadenceCardColor(state), null);
         }
         if (showContext) {
             drawContext(dc, mLayout.contextY, mLayout.contextHeight, width, state, settings);
@@ -64,11 +64,15 @@ class DashboardRenderer {
     }
 
     private function drawRangeCard(dc, y, height, width, label, target, value,
-            unit, low, high, background) {
+            unit, low, high, background, annotation) {
         var foreground = cardForeground(background);
         card(dc, y, height, width, background);
         text(dc, 8, y + 4, Graphics.FONT_SMALL, label, Graphics.TEXT_JUSTIFY_LEFT, foreground);
         text(dc, 52, y + 6, Graphics.FONT_TINY, target, Graphics.TEXT_JUSTIFY_LEFT, foreground);
+        if (annotation != null) {
+            text(dc, 8, y + 25, Graphics.FONT_TINY, annotation,
+                Graphics.TEXT_JUSTIFY_LEFT, foreground);
+        }
         drawLargeValue(dc, y, height, width, value, unit, foreground);
         rangeGauge(dc, y + height - 10, value, low, high, width, foreground);
     }

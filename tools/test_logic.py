@@ -286,6 +286,7 @@ class ContractTests(unittest.TestCase):
         self.assertNotIn("Graphics.COLOR_LT_GRAY", renderer)
         self.assertIn("settings.powerEnabled, settings.hrEnabled", renderer)
         self.assertIn('"PWR"', renderer)
+        self.assertIn('"AVG " + settings.powerAverageSeconds.format("%d") + "s"', renderer)
         self.assertIn('"CAD"', renderer)
         self.assertIn("Graphics.createColor(255, 0, 220, 0)", renderer)
         self.assertIn("thickLine(dc, lowX, y, highX, y, Graphics.COLOR_BLACK, 10)", renderer)

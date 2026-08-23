@@ -65,6 +65,7 @@ class SettingsMenuDelegate extends WatchUi.Menu2InputDelegate {
             addNumber(menu, "Lower limit", :powerLow, " W");
             addNumber(menu, "Upper limit", :powerHigh, " W");
             addNumber(menu, "Warning delay", :powerDelay, " s");
+            addNumber(menu, "Moving average", :powerAverageSeconds, " s");
         } else if (id == :heartRate) {
             menu = new SettingsMenu("Heart Rate");
             addToggle(menu, "Guidance", :hrEnabled);
@@ -112,6 +113,7 @@ class SettingsMenuDelegate extends WatchUi.Menu2InputDelegate {
         if (id == :powerLow) { return "powerLow"; }
         if (id == :powerHigh) { return "powerHigh"; }
         if (id == :powerDelay) { return "powerDelay"; }
+        if (id == :powerAverageSeconds) { return "powerAverageSeconds"; }
         if (id == :hrEnabled) { return "hrEnabled"; }
         if (id == :hrCeiling) { return "hrCeiling"; }
         if (id == :hrDelay) { return "hrDelay"; }
@@ -130,6 +132,7 @@ class SettingsMenuDelegate extends WatchUi.Menu2InputDelegate {
         if (id == :powerLow) { return ["Power lower (W)", 1, 1000, " W"]; }
         if (id == :powerHigh) { return ["Power upper (W)", 1, 1000, " W"]; }
         if (id == :powerDelay) { return ["Power delay (s)", 0, 120, " s"]; }
+        if (id == :powerAverageSeconds) { return ["Power average (s)", 1, 30, " s"]; }
         if (id == :hrCeiling) { return ["HR ceiling", 1, 250, " bpm"]; }
         if (id == :hrDelay) { return ["HR delay (s)", 0, 120, " s"]; }
         if (id == :cadenceLow) { return ["Cadence lower", 1, 250, " rpm"]; }

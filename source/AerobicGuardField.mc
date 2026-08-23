@@ -10,6 +10,7 @@ class AerobicGuardField extends WatchUi.DataField {
     var mDrift as DriftCalculator;
     var mCarbs as CarbCalculator;
     var mRenderer as DashboardRenderer;
+    var mPowerAverage as PowerMovingAverage;
     var mState as Dictionary;
     var mZoneInitializationPending;
 
@@ -20,6 +21,7 @@ class AerobicGuardField extends WatchUi.DataField {
         mDrift = new DriftCalculator();
         mCarbs = new CarbCalculator();
         mRenderer = new DashboardRenderer();
+        mPowerAverage = new PowerMovingAverage();
         mZoneInitializationPending = true;
         mState = { :power => null, :heartRate => null, :cadence => null, :speed => null,
             :elapsed => null, :coach => "WAITING FOR DATA", :drift => null, :carbs => null,
@@ -44,7 +46,8 @@ class AerobicGuardField extends WatchUi.DataField {
         var elapsed = info.elapsedTime == null ? null : (info.elapsedTime / 1000).toNumber();
         var active = info.timerState == Activity.TIMER_STATE_ON;
 
-        mState[:power] = power;
+        // Filtering is presentation-only. Coaching and drift retain raw power.
+        mState[:power] = mPowerAverage.add(power, mSettings.powerAverageSeconds);
         mState[:heartRate] = heartRate;
         mState[:cadence] = cadence;
         mState[:speed] = speed;

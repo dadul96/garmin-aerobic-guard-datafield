@@ -76,6 +76,10 @@ limit may be entered first from an unconfigured zero/zero state, but guidance
 cannot be enabled until the pair is complete and valid. Invalid legacy values
 are preserved for correction rather than silently reordered.
 
+The Power section also contains a 1-30 second displayed-power moving-average
+window. Its 1-second default preserves raw power. The filter affects the power
+number and gauge marker only; coaching and drift continue to use raw samples.
+
 The keypad uses a `WatchUi.BehaviorDelegate`. Garmin defines it as an
 `InputDelegate` subclass, so it receives raw `onTap()` callbacks while also
 providing device-independent Back handling.
