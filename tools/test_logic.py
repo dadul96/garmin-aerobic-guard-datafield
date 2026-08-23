@@ -171,6 +171,10 @@ class ContractTests(unittest.TestCase):
         self.assertIn("var scaleMin = settings.powerLow * 0.8", source)
         self.assertIn("var scaleMax = settings.powerHigh * 1.2", source)
         self.assertIn("drawRangeBar(dc, y, height, width, state[:power]", source)
+        self.assertIn("state[:averagePower]", source)
+        self.assertIn("state[:averageHeartRate]", source)
+        self.assertIn("state[:averageCadence]", source)
+        self.assertIn("drawAverageMarker", source)
 
     def test_fixed_live_bar_dashboard_contract(self):
         layout = pathlib.Path("source/DashboardLayout.mc").read_text()
@@ -193,6 +197,7 @@ class ContractTests(unittest.TestCase):
         self.assertIn("drawCeilingBar", renderer)
         self.assertIn("drawTargetPost", renderer)
         self.assertNotIn("fillDownMarker", renderer)
+        self.assertIn("private function drawAverageMarker", renderer)
         self.assertIn("fillOutwardArrow", renderer)
         self.assertIn("var count = settings.carbsEnabled ? 3 : 2", renderer)
         self.assertIn("var speedWidth = remainingWidth / remainingCount", renderer)

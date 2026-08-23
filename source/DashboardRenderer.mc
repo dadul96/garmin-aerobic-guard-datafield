@@ -51,6 +51,8 @@ class DashboardRenderer {
             settings.powerLow.format("%d") + "-" +
                 settings.powerHigh.format("%d"),
             Graphics.TEXT_JUSTIFY_RIGHT, Graphics.COLOR_BLACK);
+        drawAverageMarker(dc, state[:averagePower], scaleMin, scaleMax, y,
+            height, width);
     }
 
     private function drawHeartRate(dc, width, state as Dictionary,
@@ -70,6 +72,10 @@ class DashboardRenderer {
         text(dc, width - 8, y + height - 19, Graphics.FONT_SMALL,
             "MAX " + settings.hrCeiling.format("%d"),
             Graphics.TEXT_JUSTIFY_RIGHT, Graphics.COLOR_BLACK);
+        if (hasScale) {
+            drawAverageMarker(dc, state[:averageHeartRate], state[:hrMin],
+                state[:hrMax], y, height, width);
+        }
     }
 
     private function drawCadence(dc, width, state as Dictionary,
@@ -90,29 +96,39 @@ class DashboardRenderer {
             settings.cadenceLow.format("%d") + "-" +
                 settings.cadenceHigh.format("%d"),
             Graphics.TEXT_JUSTIFY_RIGHT, Graphics.COLOR_BLACK);
+        drawAverageMarker(dc, state[:averageCadence], scaleMin, scaleMax, y,
+            height, width);
     }
 
     private function drawRangeBar(dc, y, height, width, value, minimum,
             maximum, low, high, color) {
         startBand(dc, y, height, width);
-        if (value == null || maximum <= minimum) { return; }
-        var x = position(value, minimum, maximum, 0, width);
-        var fillWidth = value < minimum ? 14 : x;
-        if (fillWidth > 0) { fill(dc, 0, y, fillWidth, height, color); }
+        if (maximum <= minimum) { return; }
+        if (value != null) {
+            var x = position(value, minimum, maximum, 0, width);
+            var fillWidth = value < minimum ? 14 : x;
+            if (fillWidth > 0) { fill(dc, 0, y, fillWidth, height, color); }
+        }
         drawTargetPost(dc, position(low, minimum, maximum, 0, width), y, height);
         drawTargetPost(dc, position(high, minimum, maximum, 0, width), y, height);
-        drawOffScale(dc, y, height, value, minimum, maximum, width);
+        if (value != null) {
+            drawOffScale(dc, y, height, value, minimum, maximum, width);
+        }
         outlineBand(dc, y, height, width);
     }
 
     private function drawCeilingBar(dc, y, height, width, value, minimum,
             maximum, ceiling, enabled, color) {
         startBand(dc, y, height, width);
-        if (!enabled || value == null || maximum <= minimum) { return; }
-        var x = position(value, minimum, maximum, 0, width);
-        if (x > 0) { fill(dc, 0, y, x, height, color); }
+        if (!enabled || maximum <= minimum) { return; }
+        if (value != null) {
+            var x = position(value, minimum, maximum, 0, width);
+            if (x > 0) { fill(dc, 0, y, x, height, color); }
+        }
         drawTargetPost(dc, position(ceiling, minimum, maximum, 0, width), y, height);
-        drawOffScale(dc, y, height, value, minimum, maximum, width);
+        if (value != null) {
+            drawOffScale(dc, y, height, value, minimum, maximum, width);
+        }
         outlineBand(dc, y, height, width);
     }
 
@@ -130,6 +146,27 @@ class DashboardRenderer {
     private function drawTargetPost(dc, x, y, height) {
         thickLine(dc, x, y + height - 22, x, y + height - 2,
             Graphics.COLOR_BLACK, 5);
+    }
+
+    // A white knockout keeps the bottom-edge average marker distinct when it
+    // coincides with a target post or dark text.
+    private function drawAverageMarker(dc, average, minimum, maximum, y,
+            height, width) {
+        if (average == null || maximum <= minimum) { return; }
+        var x = position(average, minimum, maximum, 8, width - 9);
+        var markerTop = y + height - 13;
+        for (var row = 0; row < 11; row += 1) {
+            var halfWidth = 8 - (row * 8 / 10).toNumber();
+            thickLine(dc, x - halfWidth, markerTop + row,
+                x + halfWidth, markerTop + row, Graphics.COLOR_WHITE, 1);
+        }
+        markerTop += 2;
+        for (var innerRow = 0; innerRow < 7; innerRow += 1) {
+            var innerHalfWidth = 5 - (innerRow * 5 / 6).toNumber();
+            thickLine(dc, x - innerHalfWidth, markerTop + innerRow,
+                x + innerHalfWidth, markerTop + innerRow,
+                Graphics.COLOR_BLACK, 1);
+        }
     }
 
     private function drawOffScale(dc, y, height, value, minimum, maximum, width) {

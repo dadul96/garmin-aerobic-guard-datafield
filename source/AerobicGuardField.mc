@@ -20,6 +20,7 @@ class AerobicGuardField extends WatchUi.DataField {
         mPowerAverage = new PowerMovingAverage();
         mZoneInitializationPending = true;
         mState = { :power => null, :heartRate => null, :cadence => null, :speed => null,
+            :averagePower => null, :averageHeartRate => null, :averageCadence => null,
             :elapsed => null, :carbs => null, :hrMin => null, :hrMax => null };
         loadHrRange();
     }
@@ -41,6 +42,9 @@ class AerobicGuardField extends WatchUi.DataField {
         mState[:power] = mPowerAverage.add(power, mSettings.powerAverageSeconds);
         mState[:heartRate] = heartRate;
         mState[:cadence] = cadence;
+        mState[:averagePower] = info.averagePower;
+        mState[:averageHeartRate] = info.averageHeartRate;
+        mState[:averageCadence] = info.averageCadence;
         mState[:speed] = speed;
         mState[:elapsed] = elapsed;
         mState[:carbs] = mCarbs.calculate(elapsed, mSettings.carbRate);

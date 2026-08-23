@@ -464,3 +464,20 @@ or 94 pixels respectively on Edge 840. Range colors react directly to the live
 displayed values with no warning delay. Zero cadence while coasting can show
 below-range color context but never produces a textual instruction. Existing
 persisted delay values become unused and are no longer declared or read.
+
+## 2026-08-23 — Distinguish activity averages with outlined triangles
+
+**Decision:** Show Garmin's activity average for power, heart rate, and cadence
+as a small black downward-pointing triangle at the bottom edge of each metric
+gauge. Render a slightly larger white triangle beneath it, clamp only its visual
+position to that gauge's drawing range, and omit it when Garmin does not provide
+an average.
+
+**Rationale:** The live value already owns the color-fill edge, while bold posts
+rising from the bottom communicate coaching targets. The white knockout keeps
+the compact marker recognizable when it overlaps or approaches one of those
+posts, while the distinct silhouette remains readable over every status color.
+
+**Consequences:** Each enabled primary field adds ride-average context without
+additional text or settings. The marker is positional only; it does not alter
+the displayed live value or any guidance behavior.

@@ -76,6 +76,10 @@ State is initialized before `compute()` because Garmin does not guarantee that
   the visually clamped current value. Fill color reflects the live numeric
   relationship to its target. Values below the drawing minimum receive a fixed-width
   amber stub because a proportional fill at zero would otherwise be invisible.
+- Garmin's activity average for each primary metric is shown as a small black
+  downward triangle at the bottom of the same scale. A white knockout keeps it
+  distinct from nearby target posts and text. Missing averages are not drawn,
+  and off-scale averages are visually clamped to the scale endpoint.
 - Target ranges use two bold posts, the HR ceiling uses one post, and visually
   clamped values add filled outward arrows. The color-to-white edge alone marks
   the current position; numeric values remain real.
