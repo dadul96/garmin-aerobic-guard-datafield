@@ -64,27 +64,20 @@ class SettingsMenuDelegate extends WatchUi.Menu2InputDelegate {
             addToggle(menu, "Guidance", :powerEnabled);
             addNumber(menu, "Lower limit", :powerLow, " W");
             addNumber(menu, "Upper limit", :powerHigh, " W");
-            addNumber(menu, "Warning delay", :powerDelay, " s");
             addNumber(menu, "Moving average", :powerAverageSeconds, " s");
         } else if (id == :heartRate) {
             menu = new SettingsMenu("Heart Rate");
             addToggle(menu, "Guidance", :hrEnabled);
             addNumber(menu, "Ceiling", :hrCeiling, " bpm");
-            addNumber(menu, "Warning delay", :hrDelay, " s");
         } else if (id == :cadence) {
             menu = new SettingsMenu("Cadence");
             addToggle(menu, "Guidance", :cadenceEnabled);
             addNumber(menu, "Lower limit", :cadenceLow, " rpm");
             addNumber(menu, "Upper limit", :cadenceHigh, " rpm");
-            addNumber(menu, "Warning delay", :cadenceDelay, " s");
-        } else if (id == :fueling) {
+        } else {
             menu = new SettingsMenu("Fueling");
             addToggle(menu, "Show target", :carbsEnabled);
             addNumber(menu, "Carbohydrate rate", :carbRate, " g/h");
-        } else {
-            menu = new SettingsMenu("Drift");
-            addToggle(menu, "Show drift", :driftEnabled);
-            addNumber(menu, "Warning threshold", :driftThreshold, "%");
         }
         return menu;
     }
@@ -112,34 +105,26 @@ class SettingsMenuDelegate extends WatchUi.Menu2InputDelegate {
         if (id == :powerEnabled) { return "powerEnabled"; }
         if (id == :powerLow) { return "powerLow"; }
         if (id == :powerHigh) { return "powerHigh"; }
-        if (id == :powerDelay) { return "powerDelay"; }
         if (id == :powerAverageSeconds) { return "powerAverageSeconds"; }
         if (id == :hrEnabled) { return "hrEnabled"; }
         if (id == :hrCeiling) { return "hrCeiling"; }
-        if (id == :hrDelay) { return "hrDelay"; }
         if (id == :cadenceEnabled) { return "cadenceEnabled"; }
         if (id == :cadenceLow) { return "cadenceLow"; }
         if (id == :cadenceHigh) { return "cadenceHigh"; }
-        if (id == :cadenceDelay) { return "cadenceDelay"; }
         if (id == :carbsEnabled) { return "carbsEnabled"; }
         if (id == :carbRate) { return "carbRate"; }
-        if (id == :driftEnabled) { return "driftEnabled"; }
-        return "driftThreshold";
+        return "carbRate";
     }
 
     // [title, minimum, maximum, display unit]
     private function numberSpec(id) {
         if (id == :powerLow) { return ["Power lower (W)", 1, 1000, " W"]; }
         if (id == :powerHigh) { return ["Power upper (W)", 1, 1000, " W"]; }
-        if (id == :powerDelay) { return ["Power delay (s)", 0, 120, " s"]; }
         if (id == :powerAverageSeconds) { return ["Power average (s)", 1, 30, " s"]; }
         if (id == :hrCeiling) { return ["HR ceiling", 1, 250, " bpm"]; }
-        if (id == :hrDelay) { return ["HR delay (s)", 0, 120, " s"]; }
         if (id == :cadenceLow) { return ["Cadence lower", 1, 250, " rpm"]; }
         if (id == :cadenceHigh) { return ["Cadence upper", 1, 250, " rpm"]; }
-        if (id == :cadenceDelay) { return ["Cadence delay (s)", 0, 120, " s"]; }
-        if (id == :carbRate) { return ["Carbs (g/h)", 1, 200, " g/h"]; }
-        return ["Drift threshold", 0, 25, "%"];
+        return ["Carbs (g/h)", 1, 200, " g/h"];
     }
 
     private function applyCompanionLimit(id, spec as Array<Object>) {
@@ -374,6 +359,5 @@ function buildSettingsMenu() {
     menu.addItem(new WatchUi.MenuItem("Heart Rate", null, :heartRate, null));
     menu.addItem(new WatchUi.MenuItem("Cadence", null, :cadence, null));
     menu.addItem(new WatchUi.MenuItem("Fueling", null, :fueling, null));
-    menu.addItem(new WatchUi.MenuItem("Drift", null, :drift, null));
     return menu;
 }

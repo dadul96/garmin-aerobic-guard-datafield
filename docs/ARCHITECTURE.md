@@ -1,7 +1,7 @@
 # Architecture
 
 Aerobic Guard is a full-screen Connect IQ data field targeting the Edge 840.
-The implementation keeps live collection, coaching, calculations, settings,
+The implementation keeps live collection, calculations, settings,
 and rendering separate so the once-per-second path remains bounded and the
 pure behavior can be tested.
 
@@ -21,8 +21,7 @@ and defensive property reads keep a profile API or migration failure contained.
 - reads nullable activity values from `Activity.Info`;
 - converts elapsed milliseconds to seconds;
 - determines whether the activity timer is running;
-- sends current values to the coaching and drift components;
-- stores raw current power for display without smoothing;
+- stores the filtered presentation power and other live metrics;
 - asks `DashboardRenderer` to draw the latest state.
 
 State is initialized before `compute()` because Garmin does not guarantee that
@@ -50,14 +49,12 @@ State is initialized before `compute()` because Garmin does not guarantee that
   Power and cadence keypads derive their allowed bounds from the companion
   value and revalidate it on save. Incomplete or invalid target pairs cannot
   enable guidance. No Garmin Connect/host settings resource is exposed.
-- `CoachingEngine.mc`: deterministic priority and persistence state machine.
 - `CarbCalculator.mc`: completed-ten-minute-block carbohydrate calculation.
-- `DriftCalculator.mc`: warm-up, baseline aggregates, bounded rolling recent
-  window, sample validity, and drift calculation.
-- `DashboardLayout.mc`: allocation-free weighted geometry for visible riding
-  cards. Guidance cards receive twice the height of context/footer cards, and
-  disabled cards receive no space.
-- `DashboardRenderer.mc`: the adaptive, full-screen Edge 840 presentation.
+- `DashboardLayout.mc`: allocation-free Edge 840 geometry for equal-height
+  enabled guidance bars and the compact telemetry rail. Hidden
+  bars contribute their space equally to those that remain.
+- `DashboardRenderer.mc`: the sunlight-oriented, full-screen Edge 840
+  presentation using black/white primary contrast and redundant color accents.
 - `PowerMovingAverage.mc`: bounded rolling filter used only for the displayed
   power number and gauge marker.
 - `AerobicGuardTests.mc`: Garmin Run No Evil tests, excluded from production
@@ -65,29 +62,29 @@ State is initialized before `compute()` because Garmin does not guarantee that
 
 ## Important boundaries
 
-- The displayed power number and gauge marker share the configured 1-30 second
-  moving average. Coaching and drift continue to consume raw `currentPower`.
+- The displayed power number and color-fill edge share the configured 1-30
+  second moving average.
   Missing current power clears the filter and remains visibly unavailable. The
-  power card shows the active window as `AVG Ns` beneath its `PWR` label.
-- Power and cadence gauges draw from `lower × 0.8` through `upper × 1.2` and
-  clamp only their visual markers; numeric measurements remain unchanged.
-- Power, HR, and cadence guidance toggles also control riding-card visibility.
-  Drift and carbohydrate tiles follow their existing display toggles. Remaining
-  cards expand; speed and elapsed time remain visible in every configuration.
-- Card warning colors follow the persisted coaching state rather than raw
-  threshold crossings. The engine exposes each persisted condition separately
-  from its single prioritized coaching message, allowing simultaneous HR-high
-  and power-high cards to remain red. HR-high suppresses lower-priority yellow
-  power-low and cadence cards. Current-value markers still update every second,
-  subject to the configured power moving average.
-- HR is ceiling-only and can veto `LIFT POWER` near the ceiling.
-- Drift accepts only positive power/HR samples while the activity is running.
-- A ready drift value at or above the configured threshold highlights only the
-  drift context tile and labels it `DRIFT HIGH`; it does not replace the main
-  coaching state.
-- Drift memory is bounded: baseline data is aggregated and the recent window
-  uses ten fixed one-minute buckets.
+  power bar shows the window as `Ns`, including `1s`, beneath its `PWR` label.
+- Power and cadence bars draw from `lower × 0.8` through `upper × 1.2` and
+  clamp only their fill edges; numeric measurements remain unchanged.
+- Power, HR, and cadence bars are shown only when their guidance is enabled.
+  Visible bars divide the metric region equally and retain power/HR/cadence
+  order. Carbohydrate telemetry follows its display toggle; speed and elapsed
+  time always remain.
+- Each metric region is the gauge: color fills from its drawing minimum through
+  the visually clamped current value. Fill color reflects the live numeric
+  relationship to its target. Values below the drawing minimum receive a fixed-width
+  amber stub because a proportional fill at zero would otherwise be invisible.
+- Target ranges use two bold posts, the HR ceiling uses one post, and visually
+  clamped values add filled outward arrows. The color-to-white edge alone marks
+  the current position; numeric values remain real.
+- HR remains ceiling-only; its fill turns red only above the configured ceiling.
 - Fueling is a passive cumulative target with no alerts or consumption logging.
+- The footer divides equally among its visible values: carbs/speed/time when
+  fueling is enabled and speed/time when disabled. Speed follows Garmin's
+  distance-unit setting, converts m/s to km/h or mph, and renders the unit in a
+  deliberately extra-small font beside the larger number.
 - Rendering never invents missing sensor values or physiological HR ranges.
 - Garmin zone-derived power and HR targets are imported at most once. Existing
   non-zero targets win, and failed or malformed lookups remain zero permanently

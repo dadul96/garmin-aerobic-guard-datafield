@@ -73,10 +73,6 @@ PASSED (failures=0, errors=0)
 A test returning `false` is reported as a failure. An exception or crash is
 reported as an error.
 
-Coaching-state assertions use `String.equals()` because Monkey C's `==`
-operator compares object identity rather than string content. Failed coaching
-tests log both the expected state and the actual state before returning.
-
 To run one test, append its function name:
 
 ```bash
@@ -85,14 +81,11 @@ monkeydo bin/tests.prg edge840 -t testHeartRateVeto
 
 The current Monkey C tests cover:
 
-- power-warning persistence;
-- coaching priority;
-- HR veto of low-power coaching;
-- adaptive dashboard bounds and height redistribution for enabled and disabled
-  riding cards;
-- the tighter power/cadence gauge scale and visually clamped marker contract;
-- drift readiness and the drift formula;
-- drift warning behavior below, at, and above the configured threshold;
+- equal live-bar geometry and redistribution for every guidance visibility
+  combination;
+- the tighter power/cadence scale and visually clamped fill-edge contract;
+- equal footer redistribution with fueling enabled/disabled, Garmin metric or
+  statute speed units, and a visible under-range stub at zero;
 - carbohydrate block calculation and rounding;
 - numeric keypad editing, maximum-derived length limiting, and range validation;
 - strict power/cadence ordering, companion-derived keypad bounds, and blocking
@@ -103,8 +96,8 @@ The current Monkey C tests cover:
 - isolation of one-time default writes from settings-view startup;
 - absence of the Garmin Connect/host settings surface while property defaults
   remain available to the on-device settings view;
-- safe numeric formatting for the enabled-by-default carbohydrate and drift
-  displays, including keeping unit characters outside numeric format patterns;
+- safe carbohydrate numeric formatting with unit characters outside numeric
+  format patterns;
 - validation of only the consumed power-zone thresholds and presence of the
   latest corrective-import migration guard;
 - the 56-75% cycling-FTP fallback and its whole-watt rounding.
@@ -150,8 +143,13 @@ cancellation without saving.
 ### Riding-dashboard readability review
 
 After dashboard changes, inspect the all-enabled page and at least one reduced
-configuration on a physical Edge 840. Confirm that the coaching state and live
-power/HR values can be read at a normal riding glance, colored backgrounds
-retain sunlight contrast, off-scale arrows are distinguishable, and disabling
-a feature expands the remaining cards. This is a human device check; a build
-or simulator run does not establish physical readability.
+configuration on a physical Edge 840. Include steady, persisted warning,
+missing-sensor, missing-HR-zone, and off-scale states. Confirm at a normal
+riding glance that power is immediately readable, HR and its
+ceiling are distinct, warning meaning survives without color, target posts are
+distinct from color-fill edges, the larger three-column footer does not overlap,
+the speed unit remains legible, zero power/cadence has a visible amber stub,
+fueling-off expands speed/time equally, and guidance toggles remove bars while
+equally resizing the remainder. Repeat in bright
+outdoor light. This is a human device check; a build or simulator run does not
+establish physical readability.

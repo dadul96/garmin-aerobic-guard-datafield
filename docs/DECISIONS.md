@@ -341,3 +341,126 @@ window changes or current power becomes unavailable. Existing installations
 receive the backward-compatible 1-second property default. The power card shows
 the active window as `AVG Ns` beneath `PWR`, so its smoothing is visible while
 riding.
+
+## 2026-08-23 — Use a power-first, shape-readable riding dashboard
+
+**Decision:** Keep the light dashboard but replace large colored warning cards
+with a stable 38-pixel coaching rail, a 48-pixel two-row summary, and a 5:4:3
+power/HR/cadence guidance region. Use black and white for essential meaning;
+red, amber, and green are narrow redundant accents. Use explicit target text
+and warning badges, an outlined target band, a triangular current marker, and a
+distinct HR-ceiling post. The riding view uses no tiny or extra-tiny fonts.
+
+This supersedes the colored-card and equal guidance-card details of the
+2026-08-17 adaptive large-type dashboard decision. Its hidden-card behavior,
+single-page metric set, and tighter gauge scales remain in force.
+
+**Rationale:** The first physical outdoor test found that small secondary text,
+washed-out colored regions, and similar line-based gauge elements were hard to
+interpret in sunlight. Power is the primary live control for this product, so
+equal visual weight also spent scarce pixels contrary to the product hierarchy.
+
+**Consequences:** Power receives the largest built-in numeric font when its
+value fits; HR remains strongly secondary and cadence remains readable but
+compact. Persisted warnings remain deterministic and can appear together, but
+their cards stay white. Color loss cannot erase the coaching text, warning
+badge, target band, current marker, ceiling, or off-scale direction. The
+summary uses inline `DRIFT`, `CARBS`, `SPD`, and `TIME` labels without boxed
+tiles. Physical Edge 840 sunlight validation remains required.
+
+## 2026-08-23 — Turn the primary metrics into fixed live bars
+
+**Decision:** Replace the card-and-gauge dashboard with three permanently
+positioned full-width instruments. Power occupies 118 pixels, HR 72 pixels, and
+cadence 62 pixels beneath a 30-pixel coaching rail. Each enabled instrument
+fills with color from its drawing minimum through the current value and draws
+target or ceiling posts directly inside that region. The number is centered at
+the largest fitting built-in numeric font. A 40-pixel telemetry rail shows only
+the drift percentage, carbohydrate grams, speed number, and full elapsed time.
+
+This supersedes the 2026-08-23 power-first card layout and its warning badges,
+explicit target prose, 5:4:3 redistribution, and labeled summary. It also
+supersedes the earlier rule that guidance toggles hide riding cards: power, HR,
+and cadence numbers now remain fixed and visible, while disabled guidance
+removes only fill, posts, and coaching influence.
+
+**Rationale:** The card revision still presented too much dashboard chrome and
+text, making it less glanceable rather than more useful. Combining measurement,
+position, target, and warning color into one large instrument spends the screen
+on the live numbers and makes each region readable as a single object.
+
+**Consequences:** Coaching copy is shortened to forms such as `POWER UP`,
+`POWER DOWN`, `HR HIGH`, and `CAD UP`. The bars retain target position through
+bold posts and off-scale direction through filled arrows, so color is
+redundant. Metric positions never change during a ride. The footer relies on
+stable ordering and familiar `%`, `g`, decimal-speed, and clock formatting
+instead of labels. Physical sunlight testing must verify fill contrast, number
+legibility across every fill color, and footer recognition.
+
+## 2026-08-23 — Remove drift and equally resize enabled metric bars
+
+**Decision:** Remove aerobic drift calculation, state, settings, properties,
+tests, and UI. Show power, HR, and cadence bars only while their corresponding
+guidance is enabled; divide the available metric region equally among those
+shown. Remove the triangle at each color-to-white fill edge. Divide the footer
+equally among carbohydrate target, speed, and elapsed time, preferring the
+medium built-in font and falling back only when a value cannot fit its third.
+
+This supersedes all earlier drift decisions and the fixed-position/always-
+visible metric behavior from the preceding live-bar decision. Historical drift
+entries remain in this log to preserve the record.
+
+**Rationale:** Device review confirmed the live-bar concept but found the edge
+triangle redundant, the unequal metric heights unnecessary, and the four-cell
+footer too cramped. Drift did not earn its screen space or product complexity.
+
+**Consequences:** One, two, or three enabled metric bars receive respectively
+252, 126, or 84 pixels on the Edge 840. Disabling guidance removes that live
+metric from the page and enlarges the remainder. The fill boundary itself is
+the current-position indicator; off-scale arrows and target posts remain.
+Stored drift properties from older installations become unused and are no
+longer declared or read. Carbs, speed, and time retain stable footer order.
+
+## 2026-08-23 — Clarify equal values, adaptive footer, and zero under-range
+
+**Decision:** Render power without a `W` suffix and give it the same available
+numeric height and `FONT_NUMBER_HOT` preference as HR and cadence. Divide the
+footer among visible values: three equal cells for carbs/speed/time or two for
+speed/time when fueling is disabled. Convert speed using Garmin's configured
+distance units and append `km/h` or `mph` in `FONT_XTINY`. When power or cadence
+is below its drawing minimum, draw a 14-pixel amber stub at the left edge in
+addition to the off-scale arrow.
+
+**Rationale:** Device screenshots showed that the power unit forced a smaller
+fallback font, an empty carbohydrate cell wasted space when fueling was off,
+and an unlabeled decimal was not self-evidently speed. A zero-width fill also
+made zero power or cadence appear to have no range state.
+
+**Consequences:** All enabled primary metrics use the same large-number sizing
+rules. Footer values enlarge when fueling is disabled, and speed respects the
+rider's Garmin unit system. Range fill color reflects the live value rather
+than waiting for coaching persistence; coaching timing and cadence suppression
+while coasting remain unchanged. The amber stub communicates below-scale
+position without issuing a cadence instruction.
+
+## 2026-08-23 — Remove coaching and label raw power as 1s
+
+**Decision:** Remove the coaching engine, header, runtime state, warning-delay
+properties, and warning-delay settings. Use live bar fill color, target posts,
+off-scale arrows, and numeric values as the complete guidance surface. Reclaim
+the former 30-pixel header for the enabled metric bars. Display every power
+moving-average window uniformly as `Ns`, including `1s` instead of `RAW`.
+
+This supersedes all earlier coaching-state, priority, persistence, header-copy,
+and HR-veto decisions. Historical entries remain in this log.
+
+**Rationale:** After the live bars gained clear range color and position, the
+text header duplicated the same information while consuming valuable vertical
+space. `1s` is also more consistent and directly comparable with every other
+moving-average selection.
+
+**Consequences:** One, two, or three enabled metric bars now receive 282, 141,
+or 94 pixels respectively on Edge 840. Range colors react directly to the live
+displayed values with no warning delay. Zero cadence while coasting can show
+below-range color context but never produces a textual instruction. Existing
+persisted delay values become unused and are no longer declared or read.

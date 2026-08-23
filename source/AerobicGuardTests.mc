@@ -2,21 +2,6 @@ import Toybox.Lang;
 import Toybox.Test;
 
 (:test)
-class TestSettings {
-    var powerEnabled = true;
-    var powerLow = 170;
-    var powerHigh = 200;
-    var powerDelay = 5;
-    var hrEnabled = true;
-    var hrCeiling = 142;
-    var hrDelay = 20;
-    var cadenceEnabled = true;
-    var cadenceLow = 82;
-    var cadenceHigh = 95;
-    var cadenceDelay = 10;
-}
-
-(:test)
 function testPowerMovingAverage(logger as Test.Logger) as Boolean {
     var average = new PowerMovingAverage();
     if (average.add(100, 3) != 100
@@ -31,98 +16,6 @@ function testPowerMovingAverage(logger as Test.Logger) as Boolean {
         return false;
     }
     return average.add(501, 1) == 501;
-}
-
-(:test)
-function testCoachingPersistence(logger as Test.Logger) as Boolean {
-    var engine = new CoachingEngine();
-    var settings = new TestSettings();
-    for (var i = 0; i < 4; i += 1) {
-        var early = engine.update(220, 130, 90, true, settings);
-        if (!early.equals("STEADY")) {
-            logger.error("Expected STEADY before delay, got " + early);
-            return false;
-        }
-    }
-    var result = engine.update(220, 130, 90, true, settings);
-    if (!result.equals("EASE POWER")) {
-        logger.error("Expected EASE POWER at delay, got " + result);
-        return false;
-    }
-    return true;
-}
-
-(:test)
-function testCoachingPriority(logger as Test.Logger) as Boolean {
-    var engine = new CoachingEngine();
-    var settings = new TestSettings();
-    var result = "";
-    for (var i = 0; i < 20; i += 1) {
-        result = engine.update(220, 150, 70, true, settings);
-    }
-    if (!result.equals("EASE - HR HIGH")) {
-        logger.error("Expected HR priority, got " + result);
-        return false;
-    }
-    return true;
-}
-
-(:test)
-function testSimultaneousPersistedWarnings(logger as Test.Logger) as Boolean {
-    var engine = new CoachingEngine();
-    var settings = new TestSettings();
-    var result = "";
-    for (var i = 0; i < 20; i += 1) {
-        result = engine.update(220, 150, 90, true, settings);
-    }
-    if (!result.equals("EASE - HR HIGH") || !engine.isHrHigh()
-            || !engine.isPowerHigh()) {
-        logger.error("HR priority hid a simultaneous high-power warning");
-        return false;
-    }
-
-    engine = new CoachingEngine();
-    for (var j = 0; j < 20; j += 1) {
-        result = engine.update(150, 150, 70, true, settings);
-    }
-    return engine.isHrHigh() && engine.isPowerLow() && engine.isCadenceLow();
-}
-
-(:test)
-function testHeartRateVeto(logger as Test.Logger) as Boolean {
-    var engine = new CoachingEngine();
-    var settings = new TestSettings();
-    var result = "";
-    for (var i = 0; i < 8; i += 1) {
-        result = engine.update(150, 139, 90, true, settings);
-    }
-    if (!result.equals("STEADY")) {
-        logger.error("Expected HR veto to remain STEADY, got " + result);
-        return false;
-    }
-    return true;
-}
-
-(:test)
-function testDriftReadinessAndValue(logger as Test.Logger) as Boolean {
-    var drift = new DriftCalculator();
-    for (var second = 900; second < 1800; second += 1) {
-        drift.addSample(second, 180, 135, true);
-    }
-    for (var second = 1800; second < 2400; second += 1) {
-        drift.addSample(second, 171, 135, true);
-    }
-    if (drift.value(2399) != null) { return false; }
-    var value = drift.value(2400);
-    return value != null && value > 4.99 && value < 5.01;
-}
-
-(:test)
-function testDriftWarningThreshold(logger as Test.Logger) as Boolean {
-    return !driftIsHigh(null, 5)
-        && !driftIsHigh(4.9, 5)
-        && driftIsHigh(5.0, 5)
-        && driftIsHigh(6.0, 5);
 }
 
 (:test)
@@ -244,27 +137,22 @@ function testAdvisoryDefaults(logger as Test.Logger) as Boolean {
 }
 
 (:test)
-function testAdaptiveDashboardLayout(logger as Test.Logger) as Boolean {
+function testFixedLiveBarDashboardLayout(logger as Test.Logger) as Boolean {
     var layout = new DashboardLayout();
-    layout.configure(322, true, true, true, true);
-    if (layout.powerY != 44 || layout.powerHeight != 68
-            || layout.hrY != 112 || layout.hrHeight != 68
-            || layout.cadenceY != 180 || layout.cadenceHeight != 68
-            || layout.contextY != 248 || layout.contextHeight != 34
+    layout.configure(322, true, true, true);
+    if (layout.powerY != 0 || layout.powerHeight != 94
+            || layout.hrY != 94 || layout.hrHeight != 94
+            || layout.cadenceY != 188 || layout.cadenceHeight != 94
             || layout.footerY != 282 || layout.footerHeight != 40) {
-        logger.error("All-enabled dashboard geometry is incorrect");
         return false;
     }
-
-    layout.configure(322, true, false, false, false);
-    if (layout.powerHeight != 184 || layout.hrHeight != 0
-            || layout.cadenceHeight != 0 || layout.contextHeight != 0
-            || layout.footerY != 228 || layout.footerHeight != 94) {
-        logger.error("Reduced dashboard did not reallocate hidden-card space");
+    layout.configure(322, true, false, true);
+    if (layout.powerY != 0 || layout.powerHeight != 141
+            || layout.hrHeight != 0 || layout.cadenceY != 141
+            || layout.cadenceHeight != 141) {
         return false;
     }
-
-    layout.configure(322, false, false, false, true);
-    return layout.contextY == 44 && layout.contextHeight == 139
-        && layout.footerY == 183 && layout.footerHeight == 139;
+    layout.configure(322, false, true, false);
+    return layout.powerHeight == 0 && layout.hrY == 0
+        && layout.hrHeight == 282 && layout.cadenceHeight == 0;
 }

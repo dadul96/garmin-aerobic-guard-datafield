@@ -14,14 +14,12 @@ Connect IQ Store installation yet.
 - Raw current power with a configurable target range
 - Current heart rate with a ceiling and Garmin cycling-zone drawing range
 - Cadence with an advisory target range
-- Live aerobic-drift context after enough valid ride data exists
 - Cumulative carbohydrate target at completed ten-minute blocks
-- Speed, elapsed activity time, and one prioritized coaching message
+- Speed and elapsed activity time
 
 Aerobic Guard handles unavailable sensor values explicitly and never invents
-measurements or physiological targets. Power and cadence warnings use short
-persistence delays, while heart rate is ceiling-only and can veto advice to
-increase power.
+measurements or physiological targets. Live bar position, target posts, and
+color show each enabled metric's current relationship to its configured limits.
 
 ## Initial settings
 

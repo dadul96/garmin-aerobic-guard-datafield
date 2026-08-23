@@ -49,9 +49,7 @@ Aerobic Guard exposes an on-device settings view through
 `Application.AppBase.getSettingsView()`. On an Edge device or in the simulator,
 the data-field configuration is opened from the activity's data-field menu.
 
-Settings are grouped into Power, Heart Rate, Cadence, Fueling, and Drift.
-Drift display defaults to enabled on a new installation; an existing persisted
-toggle remains authoritative.
+Settings are grouped into Power, Heart Rate, Cadence, and Fueling.
 Guidance stays inactive until its enable switch and required numeric target(s)
 form a valid configuration. On first active-field computation, valid Garmin
 cycling Zone 2 data initializes and enables power and HR guidance. If power
@@ -78,7 +76,7 @@ are preserved for correction rather than silently reordered.
 
 The Power section also contains a 1-30 second displayed-power moving-average
 window. Its 1-second default preserves raw power. The filter affects the power
-number and gauge marker only; coaching and drift continue to use raw samples.
+number and color-fill edge together.
 
 The keypad uses a `WatchUi.BehaviorDelegate`. Garmin defines it as an
 `InputDelegate` subclass, so it receives raw `onTap()` callbacks while also

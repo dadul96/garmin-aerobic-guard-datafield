@@ -11,34 +11,6 @@ def carbs(elapsed_seconds, rate):
     return math.floor(rate * math.floor(elapsed_seconds / 600) / 6 + 0.5)
 
 
-class Coach:
-    def __init__(self):
-        self.counts = dict(hr=0, high=0, low=0, cad_low=0, cad_high=0)
-
-    def update(self, power, hr, cadence, delays=(5, 20, 10), ceiling=142):
-        conditions = {
-            "hr": hr > ceiling,
-            "high": power > 200,
-            "low": power < 170,
-            "cad_low": cadence > 0 and power > 10 and cadence < 82,
-            "cad_high": cadence > 95,
-        }
-        for key, condition in conditions.items():
-            self.counts[key] = self.counts[key] + 1 if condition else 0
-        power_delay, hr_delay, cadence_delay = delays
-        if self.counts["hr"] >= hr_delay:
-            return "EASE - HR HIGH"
-        if self.counts["high"] >= power_delay:
-            return "EASE POWER"
-        if hr < ceiling - 5 and self.counts["low"] >= power_delay:
-            return "LIFT POWER"
-        if self.counts["cad_low"] >= cadence_delay:
-            return "SPIN FASTER"
-        if self.counts["cad_high"] >= cadence_delay:
-            return "LOWER CADENCE"
-        return "STEADY"
-
-
 class NumericInput:
     def __init__(self, minimum, maximum, current):
         self.minimum = minimum
@@ -78,73 +50,18 @@ class NumericInput:
 
 
 class ContractTests(unittest.TestCase):
-    def test_drift_display_defaults_enabled(self):
-        root = ET.parse("resources/properties/properties.xml").getroot()
-        properties = {item.attrib["id"]: item.text for item in root}
-        self.assertEqual("true", properties["driftEnabled"])
-
     def test_carbohydrate_completed_blocks_and_rounding(self):
         self.assertEqual(0, carbs(599, 60))
         self.assertEqual(10, carbs(600, 60))
         self.assertEqual(27, carbs(1200, 80))
         self.assertEqual(80, carbs(3600, 80))
 
-    def test_coaching_persistence_and_priority(self):
-        coach = Coach()
-        for _ in range(4):
-            self.assertEqual("STEADY", coach.update(220, 130, 90))
-        self.assertEqual("EASE POWER", coach.update(220, 130, 90))
-        coach = Coach()
-        for _ in range(20):
-            result = coach.update(220, 150, 70)
-        self.assertEqual("EASE - HR HIGH", result)
-
-    def test_renderer_preserves_simultaneous_red_warnings(self):
-        engine = pathlib.Path("source/CoachingEngine.mc").read_text()
-        field = pathlib.Path("source/AerobicGuardField.mc").read_text()
+    def test_renderer_uses_live_range_colors(self):
         renderer = pathlib.Path("source/DashboardRenderer.mc").read_text()
-
-        self.assertIn("function isHrHigh()", engine)
-        self.assertIn("function isPowerHigh()", engine)
-        self.assertIn("mState[:powerHigh] = mCoach.isPowerHigh()", field)
-        self.assertIn("if (state[:powerHigh]) { return Graphics.COLOR_RED; }", renderer)
-        self.assertIn("state[:powerLow] && !state[:hrHigh]", renderer)
-        self.assertIn("!state[:hrHigh] && (state[:cadenceLow]", renderer)
-
-    def test_hr_vetoes_low_power_instruction(self):
-        coach = Coach()
-        for _ in range(8):
-            result = coach.update(150, 139, 90)
-        self.assertEqual("STEADY", result)
-
-    def test_drift_readiness_and_formula(self):
-        self.assertLess(2399, 2400)
-        baseline_efficiency = 180 / 135
-        recent_efficiency = 171 / 135
-        drift = (1 - recent_efficiency / baseline_efficiency) * 100
-        self.assertAlmostEqual(5.0, drift)
-        self.assertLess(719, 720)
-        self.assertLess(479, 480)
-
-    def test_drift_warning_threshold_contract(self):
-        def drift_is_high(value, threshold):
-            return value is not None and value >= threshold
-
-        self.assertFalse(drift_is_high(None, 5))
-        self.assertFalse(drift_is_high(4.9, 5))
-        self.assertTrue(drift_is_high(5.0, 5))
-        self.assertTrue(drift_is_high(6.0, 5))
-
-        renderer = pathlib.Path("source/DashboardRenderer.mc").read_text()
-        self.assertIn("driftIsHigh(state[:drift], settings.driftThreshold)", renderer)
-        self.assertIn('driftHigh ? "DRIFT HIGH" : "DRIFT"', renderer)
-        self.assertIn("driftHigh ? Graphics.COLOR_YELLOW", renderer)
-        self.assertGreaterEqual(
-            renderer.count(
-                "thickLine(dc, 0, y, width, y, Graphics.COLOR_DK_GRAY, 1)"
-            ),
-            3,
-        )
+        self.assertIn("rangeColor(state[:power]", renderer)
+        self.assertIn("rangeColor(state[:cadence]", renderer)
+        self.assertIn("if (value < low) { return mAmber; }", renderer)
+        self.assertIn("if (value > high) { return highColor; }", renderer)
 
     def test_numeric_input_editing_and_validation(self):
         value = NumericInput(1, 1000, 170)
@@ -239,12 +156,8 @@ class ContractTests(unittest.TestCase):
     def test_renderer_does_not_put_units_in_numeric_format_pattern(self):
         source = pathlib.Path("source/DashboardRenderer.mc").read_text()
         self.assertNotIn('format("%d g")', source)
-        self.assertIn('formatInteger(state[:carbs]) + " g"', source)
-        self.assertNotIn('"%+.1f%%"', source)
-        self.assertEqual(
-            2,
-            source.count('formatFloat(state[:drift], "%+.1f") + "%"'),
-        )
+        self.assertIn('formatInteger(state[:carbs]) + "g"', source)
+        self.assertNotIn("drift", source.lower())
 
     def test_power_and_cadence_gauge_scale_around_target(self):
         low = 80
@@ -255,47 +168,67 @@ class ContractTests(unittest.TestCase):
         self.assertEqual(114, scale_max)
 
         source = pathlib.Path("source/DashboardRenderer.mc").read_text()
-        self.assertIn("var scaleMin = low * 0.8", source)
-        self.assertIn("var scaleMax = high * 1.2", source)
-        self.assertIn("drawMarker(dc, y, value, scaleMin, scaleMax", source)
+        self.assertIn("var scaleMin = settings.powerLow * 0.8", source)
+        self.assertIn("var scaleMax = settings.powerHigh * 1.2", source)
+        self.assertIn("drawRangeBar(dc, y, height, width, state[:power]", source)
 
-    def test_adaptive_dashboard_layout_contract(self):
-        def layout(enabled):
-            weight = 1 + sum(2 for visible in enabled[:3] if visible)
-            weight += 1 if enabled[3] else 0
-            unit = (322 - 44) // weight
-            heights = [unit * 2 if visible else 0 for visible in enabled[:3]]
-            heights.append(unit if enabled[3] else 0)
-            heights.append(322 - 44 - sum(heights))
-            return heights
-
-        for mask in range(16):
-            enabled = tuple(bool(mask & (1 << bit)) for bit in range(4))
-            heights = layout(enabled)
-            self.assertEqual(278, sum(heights))
-            self.assertTrue(all(height >= 0 for height in heights))
-            for index, visible in enumerate(enabled):
-                self.assertEqual(visible, heights[index] > 0)
-
-        self.assertEqual([68, 68, 68, 34, 40], layout((True, True, True, True)))
-        self.assertEqual([184, 0, 0, 0, 94], layout((True, False, False, False)))
-        self.assertEqual([0, 0, 0, 139, 139], layout((False, False, False, True)))
+    def test_fixed_live_bar_dashboard_contract(self):
+        layout = pathlib.Path("source/DashboardLayout.mc").read_text()
+        self.assertNotIn("banner", layout.lower())
+        self.assertIn("var visibleCount = 0", layout)
+        self.assertIn("remainingHeight / remainingCount", layout)
+        self.assertIn("if (showPower)", layout)
+        self.assertIn("if (showHr)", layout)
+        self.assertIn("if (showCadence)", layout)
 
         renderer = pathlib.Path("source/DashboardRenderer.mc").read_text()
         self.assertNotIn('"AEROBIC GUARD"', renderer)
-        self.assertNotIn("Graphics.COLOR_LT_GRAY", renderer)
-        self.assertIn("settings.powerEnabled, settings.hrEnabled", renderer)
         self.assertIn('"PWR"', renderer)
-        self.assertIn('"AVG " + settings.powerAverageSeconds.format("%d") + "s"', renderer)
+        self.assertIn('return seconds.format("%d") + "s"', renderer)
         self.assertIn('"CAD"', renderer)
-        self.assertIn("Graphics.createColor(255, 0, 220, 0)", renderer)
-        self.assertIn("thickLine(dc, lowX, y, highX, y, Graphics.COLOR_BLACK, 10)", renderer)
-        self.assertIn("thickLine(dc, 0, y, width, y, Graphics.COLOR_DK_GRAY, 1)", renderer)
-        self.assertIn("thickLine(dc, ceilingX, y - 8, ceilingX, y + 8, Graphics.COLOR_BLACK, 7)", renderer)
-        self.assertIn("background == Graphics.COLOR_RED", renderer)
-        self.assertIn("thickLine(dc, x, y - 8, x, y + 8, Graphics.COLOR_BLACK, 9)", renderer)
-        self.assertIn("thickLine(dc, x, y - 8, x, y + 8, Graphics.COLOR_WHITE, 7)", renderer)
-        self.assertIn("thickLine(dc, x, y - 8, x, y + 8, Graphics.COLOR_BLACK, 3)", renderer)
+        self.assertIn("Graphics.FONT_NUMBER_HOT", renderer)
+        self.assertNotIn("Graphics.FONT_TINY", renderer)
+        self.assertEqual(1, renderer.count("Graphics.FONT_XTINY"))
+        self.assertIn("drawRangeBar", renderer)
+        self.assertIn("drawCeilingBar", renderer)
+        self.assertIn("drawTargetPost", renderer)
+        self.assertNotIn("fillDownMarker", renderer)
+        self.assertIn("fillOutwardArrow", renderer)
+        self.assertIn("var count = settings.carbsEnabled ? 3 : 2", renderer)
+        self.assertIn("var speedWidth = remainingWidth / remainingCount", renderer)
+        self.assertIn("var font = Graphics.FONT_MEDIUM", renderer)
+        self.assertIn("var fillWidth = value < minimum ? 14 : x", renderer)
+        self.assertIn("System.UNIT_STATUTE", renderer)
+        self.assertIn('? "mph" : "km/h"', renderer)
+        self.assertIn("drawHugeValue(dc, y, height - 20, width, state[:power], null", renderer)
+        self.assertNotIn('"TARGET "', renderer)
+        self.assertNotIn('"CEILING "', renderer)
+
+    def test_drift_is_removed_from_product_surface(self):
+        paths = [
+            "source/AerobicGuardField.mc",
+            "source/SettingsModel.mc",
+            "source/SettingsMenu.mc",
+            "source/DashboardRenderer.mc",
+            "resources/properties/properties.xml",
+        ]
+        for path in paths:
+            self.assertNotIn("drift", pathlib.Path(path).read_text().lower())
+        self.assertFalse(pathlib.Path("source/DriftCalculator.mc").exists())
+
+    def test_coaching_is_removed_from_product_surface(self):
+        paths = [
+            "source/AerobicGuardField.mc",
+            "source/SettingsModel.mc",
+            "source/SettingsMenu.mc",
+            "source/DashboardRenderer.mc",
+            "resources/properties/properties.xml",
+        ]
+        for path in paths:
+            source = pathlib.Path(path).read_text().lower()
+            self.assertNotIn("coach", source)
+            self.assertNotIn("warning delay", source)
+        self.assertFalse(pathlib.Path("source/CoachingEngine.mc").exists())
 
     def test_power_zone_import_and_ftp_fallback_contract(self):
         source = pathlib.Path("source/ZoneDefaultsInitializer.mc").read_text()

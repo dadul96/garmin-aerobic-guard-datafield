@@ -1,225 +1,255 @@
 import Toybox.Graphics;
 import Toybox.Lang;
-
-function driftIsHigh(value, threshold) {
-    return value != null && value >= threshold;
-}
+import Toybox.System;
 
 class DashboardRenderer {
     var mLayout as DashboardLayout;
     var mGreen;
+    var mAmber;
+    var mRed;
 
     function initialize() {
         mLayout = new DashboardLayout();
-        // Slightly darker than COLOR_GREEN so it retains shape in bright sun.
-        mGreen = Graphics.createColor(255, 0, 220, 0);
+        // Essential meaning is carried by position, posts, and text. These
+        // deliberately bright fills are redundant sunlight-visible accents.
+        mGreen = Graphics.createColor(255, 0, 205, 0);
+        mAmber = Graphics.createColor(255, 255, 185, 0);
+        mRed = Graphics.createColor(255, 255, 65, 65);
     }
 
     function draw(dc as Dc, state as Dictionary, settings as SettingsModel) {
         var width = dc.getWidth();
-        var height = dc.getHeight();
-        var showContext = settings.driftEnabled || settings.carbsEnabled;
-        mLayout.configure(height, settings.powerEnabled, settings.hrEnabled,
-            settings.cadenceEnabled, showContext);
-
+        mLayout.configure(dc.getHeight(), settings.powerEnabled,
+            settings.hrEnabled, settings.cadenceEnabled);
         dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_WHITE);
         dc.clear();
-        drawCoach(dc, width, state[:coach]);
 
-        if (mLayout.powerHeight > 0) {
-            drawRangeCard(dc, mLayout.powerY, mLayout.powerHeight, width,
-                "PWR", settings.powerLow.format("%d") + "-" + settings.powerHigh.format("%d"),
-                state[:power], "W", settings.powerLow, settings.powerHigh,
-                powerCardColor(state), "AVG " + settings.powerAverageSeconds.format("%d") + "s");
-        }
-        if (mLayout.hrHeight > 0) {
-            drawHrCard(dc, mLayout.hrY, mLayout.hrHeight, width, state, settings,
-                hrCardColor(state));
-        }
-        if (mLayout.cadenceHeight > 0) {
-            drawRangeCard(dc, mLayout.cadenceY, mLayout.cadenceHeight, width,
-                "CAD", settings.cadenceLow.format("%d") + "-" + settings.cadenceHigh.format("%d"),
-                state[:cadence], "RPM", settings.cadenceLow, settings.cadenceHigh,
-                cadenceCardColor(state), null);
-        }
-        if (showContext) {
-            drawContext(dc, mLayout.contextY, mLayout.contextHeight, width, state, settings);
-        }
-        drawFooter(dc, mLayout.footerY, mLayout.footerHeight, width, state);
+        if (settings.powerEnabled) { drawPower(dc, width, state, settings); }
+        if (settings.hrEnabled) { drawHeartRate(dc, width, state, settings); }
+        if (settings.cadenceEnabled) { drawCadence(dc, width, state, settings); }
+        drawFooter(dc, width, state, settings);
     }
 
-    private function drawCoach(dc, width, coach) {
-        var background = Graphics.COLOR_DK_GRAY;
-        var foreground = Graphics.COLOR_WHITE;
-        if (coach.equals("STEADY")) {
-            background = mGreen; foreground = Graphics.COLOR_BLACK;
-        } else if (coach.equals("EASE - HR HIGH") || coach.equals("EASE POWER")) {
-            background = Graphics.COLOR_RED;
-        } else if (coach.equals("LIFT POWER") || coach.equals("SPIN FASTER") || coach.equals("LOWER CADENCE")) {
-            background = Graphics.COLOR_YELLOW; foreground = Graphics.COLOR_BLACK;
-        }
-        fill(dc, 0, 0, width, mLayout.bannerHeight, background);
-        centeredText(dc, width / 2, mLayout.bannerHeight / 2,
-            Graphics.FONT_MEDIUM, coach, foreground);
-    }
-
-    private function drawRangeCard(dc, y, height, width, label, target, value,
-            unit, low, high, background, annotation) {
-        var foreground = cardForeground(background);
-        card(dc, y, height, width, background);
-        text(dc, 8, y + 4, Graphics.FONT_SMALL, label, Graphics.TEXT_JUSTIFY_LEFT, foreground);
-        text(dc, 52, y + 6, Graphics.FONT_TINY, target, Graphics.TEXT_JUSTIFY_LEFT, foreground);
-        if (annotation != null) {
-            text(dc, 8, y + 25, Graphics.FONT_TINY, annotation,
-                Graphics.TEXT_JUSTIFY_LEFT, foreground);
-        }
-        drawLargeValue(dc, y, height, width, value, unit, foreground);
-        rangeGauge(dc, y + height - 10, value, low, high, width, foreground);
-    }
-
-    private function drawHrCard(dc, y, height, width, state as Dictionary,
-            settings as SettingsModel, background) {
-        var foreground = cardForeground(background);
-        card(dc, y, height, width, background);
-        text(dc, 8, y + 4, Graphics.FONT_SMALL, "HR", Graphics.TEXT_JUSTIFY_LEFT, foreground);
-        text(dc, 44, y + 6, Graphics.FONT_TINY, "<=" + settings.hrCeiling.format("%d"),
-            Graphics.TEXT_JUSTIFY_LEFT, foreground);
-        drawLargeValue(dc, y, height, width, state[:heartRate], "BPM", foreground);
-        if (state[:hrMin] == null || state[:hrMax] == null) {
-            text(dc, 8, y + height - 18, Graphics.FONT_TINY, "NO ZONES",
-                Graphics.TEXT_JUSTIFY_LEFT, foreground);
-        } else {
-            var limitColor = background == Graphics.COLOR_RED
-                ? Graphics.COLOR_WHITE : Graphics.COLOR_RED;
-            hrGauge(dc, y + height - 10, state[:heartRate], state[:hrMin], state[:hrMax],
-                settings.hrCeiling, width, foreground, limitColor);
-        }
-    }
-
-    private function drawLargeValue(dc, y, height, width, value, unit, color) {
-        var valueFont = height >= 60 ? Graphics.FONT_NUMBER_MEDIUM : Graphics.FONT_MEDIUM;
-        var unitWidth = dc.getTextWidthInPixels(unit, Graphics.FONT_TINY);
-        var centerY = y + (height - 8) / 2;
-        text(dc, width - 10, centerY - dc.getFontHeight(Graphics.FONT_TINY) / 2,
-            Graphics.FONT_TINY, unit, Graphics.TEXT_JUSTIFY_RIGHT, color);
-        text(dc, width - 15 - unitWidth, centerY - dc.getFontHeight(valueFont) / 2,
-            valueFont, formatInteger(value), Graphics.TEXT_JUSTIFY_RIGHT, color);
-    }
-
-    private function rangeGauge(dc, y, value, low, high, width, foreground) {
-        var left = 8; var right = width - 8;
-        var scaleMin = low * 0.8;
-        var scaleMax = high * 1.2;
-        var lowX = position(low, scaleMin, scaleMax, left, right);
-        var highX = position(high, scaleMin, scaleMax, left, right);
-        thickLine(dc, left, y, right, y, foreground, 3);
-        // The one-pixel black surround keeps green distinct from white cards.
-        thickLine(dc, lowX, y, highX, y, Graphics.COLOR_BLACK, 10);
-        thickLine(dc, lowX, y, highX, y, mGreen, 8);
-        drawMarker(dc, y, value, scaleMin, scaleMax, left, right, foreground);
-    }
-
-    private function hrGauge(dc, y, value, minimum, maximum, ceiling, width,
-            foreground, limitColor) {
-        var left = 8; var right = width - 8;
-        thickLine(dc, left, y, right, y, foreground, 3);
-        var ceilingX = position(ceiling, minimum, maximum, left, right);
-        thickLine(dc, ceilingX, y - 8, ceilingX, y + 8, Graphics.COLOR_BLACK, 7);
-        thickLine(dc, ceilingX, y - 8, ceilingX, y + 8, limitColor, 5);
-        drawMarker(dc, y, value, minimum, maximum, left, right, foreground);
-    }
-
-    private function drawMarker(dc, y, value, minimum, maximum, left, right, color) {
-        if (value == null || maximum <= minimum) { return; }
-        var x = position(value, minimum, maximum, left, right);
-        // Keep the moving marker identical on every card: black center, white
-        // halo, black outer edge. The halo provides contrast on red cards.
-        thickLine(dc, x, y - 8, x, y + 8, Graphics.COLOR_BLACK, 9);
-        thickLine(dc, x, y - 8, x, y + 8, Graphics.COLOR_WHITE, 7);
-        thickLine(dc, x, y - 8, x, y + 8, Graphics.COLOR_BLACK, 3);
-        if (value < minimum) {
-            thickLine(dc, left, y, left + 7, y - 6, color, 3);
-            thickLine(dc, left, y, left + 7, y + 6, color, 3);
-        } else if (value > maximum) {
-            thickLine(dc, right, y, right - 7, y - 6, color, 3);
-            thickLine(dc, right, y, right - 7, y + 6, color, 3);
-        }
-    }
-
-    private function drawContext(dc, y, height, width, state as Dictionary,
+    private function drawPower(dc, width, state as Dictionary,
             settings as SettingsModel) {
-        card(dc, y, height, width, Graphics.COLOR_WHITE);
-        var driftHigh = driftIsHigh(state[:drift], settings.driftThreshold);
-        var driftLabel = driftHigh ? "DRIFT HIGH" : "DRIFT";
-        var driftBackground = driftHigh ? Graphics.COLOR_YELLOW : Graphics.COLOR_WHITE;
-        if (settings.driftEnabled && settings.carbsEnabled) {
-            contextTile(dc, 0, y, width / 2, height, driftLabel,
-                formatFloat(state[:drift], "%+.1f") + "%", driftBackground);
-            contextTile(dc, width / 2, y, width - width / 2, height, "CARB",
-                formatInteger(state[:carbs]) + " g", Graphics.COLOR_WHITE);
-            divider(dc, width / 2, y, height);
-        } else if (settings.driftEnabled) {
-            contextTile(dc, 0, y, width, height, driftLabel,
-                formatFloat(state[:drift], "%+.1f") + "%", driftBackground);
-        } else {
-            contextTile(dc, 0, y, width, height, "CARB",
-                formatInteger(state[:carbs]) + " g", Graphics.COLOR_WHITE);
+        var y = mLayout.powerY;
+        var height = mLayout.powerHeight;
+        var scaleMin = settings.powerLow * 0.8;
+        var scaleMax = settings.powerHigh * 1.2;
+        var color = rangeColor(state[:power], settings.powerLow,
+            settings.powerHigh, mRed);
+        drawRangeBar(dc, y, height, width, state[:power], scaleMin, scaleMax,
+            settings.powerLow, settings.powerHigh, color);
+        drawHugeValue(dc, y, height - 20, width, state[:power], null,
+            Graphics.FONT_NUMBER_HOT);
+        text(dc, 8, y + height - 36, Graphics.FONT_SMALL, "PWR",
+            Graphics.TEXT_JUSTIFY_LEFT, Graphics.COLOR_BLACK);
+        text(dc, 8, y + height - 18, Graphics.FONT_SMALL,
+            powerAverageLabel(settings.powerAverageSeconds),
+            Graphics.TEXT_JUSTIFY_LEFT, Graphics.COLOR_BLACK);
+        text(dc, width - 8, y + height - 27, Graphics.FONT_SMALL,
+            settings.powerLow.format("%d") + "-" +
+                settings.powerHigh.format("%d"),
+            Graphics.TEXT_JUSTIFY_RIGHT, Graphics.COLOR_BLACK);
+    }
+
+    private function drawHeartRate(dc, width, state as Dictionary,
+            settings as SettingsModel) {
+        var y = mLayout.hrY;
+        var height = mLayout.hrHeight;
+        var hasScale = settings.hrEnabled && state[:hrMin] != null
+            && state[:hrMax] != null;
+        drawCeilingBar(dc, y, height, width, state[:heartRate], state[:hrMin],
+            state[:hrMax], settings.hrCeiling, hasScale,
+            state[:heartRate] != null && state[:heartRate] > settings.hrCeiling
+                ? mRed : mGreen);
+        drawHugeValue(dc, y, height - 20, width, state[:heartRate], null,
+            Graphics.FONT_NUMBER_HOT);
+        text(dc, 8, y + height - 19, Graphics.FONT_SMALL, "HR",
+            Graphics.TEXT_JUSTIFY_LEFT, Graphics.COLOR_BLACK);
+        text(dc, width - 8, y + height - 19, Graphics.FONT_SMALL,
+            "MAX " + settings.hrCeiling.format("%d"),
+            Graphics.TEXT_JUSTIFY_RIGHT, Graphics.COLOR_BLACK);
+    }
+
+    private function drawCadence(dc, width, state as Dictionary,
+            settings as SettingsModel) {
+        var y = mLayout.cadenceY;
+        var height = mLayout.cadenceHeight;
+        var scaleMin = settings.cadenceLow * 0.8;
+        var scaleMax = settings.cadenceHigh * 1.2;
+        var color = rangeColor(state[:cadence], settings.cadenceLow,
+            settings.cadenceHigh, mAmber);
+        drawRangeBar(dc, y, height, width, state[:cadence], scaleMin, scaleMax,
+            settings.cadenceLow, settings.cadenceHigh, color);
+        drawHugeValue(dc, y, height - 19, width, state[:cadence], null,
+            Graphics.FONT_NUMBER_HOT);
+        text(dc, 8, y + height - 19, Graphics.FONT_SMALL, "CAD",
+            Graphics.TEXT_JUSTIFY_LEFT, Graphics.COLOR_BLACK);
+        text(dc, width - 8, y + height - 19, Graphics.FONT_SMALL,
+            settings.cadenceLow.format("%d") + "-" +
+                settings.cadenceHigh.format("%d"),
+            Graphics.TEXT_JUSTIFY_RIGHT, Graphics.COLOR_BLACK);
+    }
+
+    private function drawRangeBar(dc, y, height, width, value, minimum,
+            maximum, low, high, color) {
+        startBand(dc, y, height, width);
+        if (value == null || maximum <= minimum) { return; }
+        var x = position(value, minimum, maximum, 0, width);
+        var fillWidth = value < minimum ? 14 : x;
+        if (fillWidth > 0) { fill(dc, 0, y, fillWidth, height, color); }
+        drawTargetPost(dc, position(low, minimum, maximum, 0, width), y, height);
+        drawTargetPost(dc, position(high, minimum, maximum, 0, width), y, height);
+        drawOffScale(dc, y, height, value, minimum, maximum, width);
+        outlineBand(dc, y, height, width);
+    }
+
+    private function drawCeilingBar(dc, y, height, width, value, minimum,
+            maximum, ceiling, enabled, color) {
+        startBand(dc, y, height, width);
+        if (!enabled || value == null || maximum <= minimum) { return; }
+        var x = position(value, minimum, maximum, 0, width);
+        if (x > 0) { fill(dc, 0, y, x, height, color); }
+        drawTargetPost(dc, position(ceiling, minimum, maximum, 0, width), y, height);
+        drawOffScale(dc, y, height, value, minimum, maximum, width);
+        outlineBand(dc, y, height, width);
+    }
+
+    private function startBand(dc, y, height, width) {
+        fill(dc, 0, y, width, height, Graphics.COLOR_WHITE);
+        outlineBand(dc, y, height, width);
+    }
+
+    private function outlineBand(dc, y, height, width) {
+        thickLine(dc, 0, y, width, y, Graphics.COLOR_BLACK, 2);
+        thickLine(dc, 0, y + height - 1, width, y + height - 1,
+            Graphics.COLOR_BLACK, 2);
+    }
+
+    private function drawTargetPost(dc, x, y, height) {
+        thickLine(dc, x, y + height - 22, x, y + height - 2,
+            Graphics.COLOR_BLACK, 5);
+    }
+
+    private function drawOffScale(dc, y, height, value, minimum, maximum, width) {
+        if (value < minimum) {
+            fillOutwardArrow(dc, 0, y + height / 2, false, Graphics.COLOR_BLACK);
+        } else if (value > maximum) {
+            fillOutwardArrow(dc, width - 1, y + height / 2, true,
+                Graphics.COLOR_BLACK);
         }
-        thickLine(dc, 0, y, width, y, Graphics.COLOR_DK_GRAY, 1);
     }
 
-    private function drawFooter(dc, y, height, width, state as Dictionary) {
-        card(dc, y, height, width, Graphics.COLOR_WHITE);
-        contextTile(dc, 0, y, width / 2, height, "SPD", formatSpeed(state[:speed]),
-            Graphics.COLOR_WHITE);
-        contextTile(dc, width / 2, y, width - width / 2, height, "TIME",
-            formatTime(state[:elapsed]), Graphics.COLOR_WHITE);
-        divider(dc, width / 2, y, height);
-        thickLine(dc, 0, y, width, y, Graphics.COLOR_DK_GRAY, 1);
+    private function drawHugeValue(dc, y, height, width, value, unit,
+            preferredFont) {
+        var valueText = formatInteger(value);
+        var font = preferredFont;
+        var unitWidth = unit == null ? 0
+            : dc.getTextWidthInPixels(unit, Graphics.FONT_SMALL) + 8;
+        if (dc.getTextWidthInPixels(valueText, font) + unitWidth > width - 16
+                || dc.getFontHeight(font) > height - 4) {
+            font = Graphics.FONT_NUMBER_MEDIUM;
+        }
+        var valueWidth = dc.getTextWidthInPixels(valueText, font);
+        var groupWidth = valueWidth + unitWidth;
+        var left = (width - groupWidth) / 2;
+        var centerY = y + height / 2;
+        text(dc, left, centerY - dc.getFontHeight(font) / 2, font, valueText,
+            Graphics.TEXT_JUSTIFY_LEFT, Graphics.COLOR_BLACK);
+        if (unit != null) {
+            text(dc, left + valueWidth + 8,
+                centerY - dc.getFontHeight(Graphics.FONT_SMALL) / 2,
+                Graphics.FONT_SMALL, unit, Graphics.TEXT_JUSTIFY_LEFT,
+                Graphics.COLOR_BLACK);
+        }
     }
 
-    private function contextTile(dc, x, y, width, height, label, value, background) {
-        fill(dc, x, y, width, height, background);
-        var valueFont = height >= 55 ? Graphics.FONT_MEDIUM : Graphics.FONT_SMALL;
-        text(dc, x + 7, y + 3, Graphics.FONT_TINY, label, Graphics.TEXT_JUSTIFY_LEFT, Graphics.COLOR_BLACK);
-        centeredText(dc, x + width / 2, y + height / 2 + 5, valueFont, value, Graphics.COLOR_BLACK);
+    private function drawFooter(dc, width, state as Dictionary,
+            settings as SettingsModel) {
+        var y = mLayout.footerY;
+        var height = mLayout.footerHeight;
+        fill(dc, 0, y, width, height, Graphics.COLOR_WHITE);
+        var count = settings.carbsEnabled ? 3 : 2;
+        var statute = System.getDeviceSettings().distanceUnits == System.UNIT_STATUTE;
+        var remainingWidth = width;
+        var remainingCount = count;
+        var x = 0;
+        if (settings.carbsEnabled) {
+            var carbWidth = remainingWidth / remainingCount;
+            footerValue(dc, x, carbWidth, y, height,
+                formatInteger(state[:carbs]) + "g");
+            x += carbWidth;
+            remainingWidth -= carbWidth;
+            remainingCount -= 1;
+            thickLine(dc, x, y, x, y + height, Graphics.COLOR_BLACK, 1);
+        }
+        var speedWidth = remainingWidth / remainingCount;
+        footerSpeed(dc, x, speedWidth, y, height, state[:speed], statute);
+        x += speedWidth;
+        thickLine(dc, x, y, x, y + height, Graphics.COLOR_BLACK, 1);
+        footerValue(dc, x, width - x, y, height, formatTime(state[:elapsed]));
+        thickLine(dc, 0, y, width, y, Graphics.COLOR_BLACK, 2);
     }
 
-    private function powerCardColor(state as Dictionary) {
-        if (state[:powerHigh]) { return Graphics.COLOR_RED; }
-        if (state[:powerLow] && !state[:hrHigh]) { return Graphics.COLOR_YELLOW; }
-        return Graphics.COLOR_WHITE;
+    private function footerValue(dc, x, width, y, height, value) {
+        var font = Graphics.FONT_MEDIUM;
+        if (dc.getTextWidthInPixels(value, font) > width - 8) {
+            font = Graphics.FONT_SMALL;
+        }
+        centeredText(dc, x + width / 2, y + height / 2, font, value,
+            Graphics.COLOR_BLACK);
     }
 
-    private function hrCardColor(state as Dictionary) {
-        return state[:hrHigh] ? Graphics.COLOR_RED : Graphics.COLOR_WHITE;
+    private function footerSpeed(dc, x, width, y, height, value, statute) {
+        var valueText = formatSpeed(value, statute);
+        var unit = statute ? "mph" : "km/h";
+        var valueFont = Graphics.FONT_MEDIUM;
+        var unitFont = Graphics.FONT_XTINY;
+        var unitWidth = dc.getTextWidthInPixels(unit, unitFont);
+        var valueWidth = dc.getTextWidthInPixels(valueText, valueFont);
+        if (valueWidth + unitWidth + 4 > width - 8) {
+            valueFont = Graphics.FONT_SMALL;
+            valueWidth = dc.getTextWidthInPixels(valueText, valueFont);
+        }
+        var left = x + (width - valueWidth - unitWidth - 4) / 2;
+        var centerY = y + height / 2;
+        text(dc, left, centerY - dc.getFontHeight(valueFont) / 2,
+            valueFont, valueText, Graphics.TEXT_JUSTIFY_LEFT, Graphics.COLOR_BLACK);
+        text(dc, left + valueWidth + 4,
+            centerY - dc.getFontHeight(unitFont) / 2, unitFont, unit,
+            Graphics.TEXT_JUSTIFY_LEFT, Graphics.COLOR_BLACK);
     }
 
-    private function cadenceCardColor(state as Dictionary) {
-        return !state[:hrHigh] && (state[:cadenceLow] || state[:cadenceHigh])
-            ? Graphics.COLOR_YELLOW : Graphics.COLOR_WHITE;
+    private function rangeColor(value, low, high, highColor) {
+        if (value == null) { return mGreen; }
+        if (value < low) { return mAmber; }
+        if (value > high) { return highColor; }
+        return mGreen;
     }
 
-    private function cardForeground(background) {
-        return background == Graphics.COLOR_RED ? Graphics.COLOR_WHITE : Graphics.COLOR_BLACK;
+    private function powerAverageLabel(seconds) {
+        return seconds.format("%d") + "s";
     }
 
-    private function card(dc, y, height, width, color) {
-        fill(dc, 0, y, width, height, color);
-        thickLine(dc, 0, y, width, y, Graphics.COLOR_DK_GRAY, 1);
-    }
-
-    private function divider(dc, x, y, height) {
-        thickLine(dc, x, y, x, y + height, Graphics.COLOR_DK_GRAY, 1);
+    private function fillOutwardArrow(dc, x, y, pointsRight, color) {
+        for (var offset = 0; offset <= 9; offset += 1) {
+            var arrowX = pointsRight ? x - 9 + offset : x + 9 - offset;
+            var half = offset * 8 / 9;
+            thickLine(dc, arrowX, y - half, arrowX, y + half, color, 1);
+        }
     }
 
     private function fill(dc, x, y, width, height, color) {
-        dc.setColor(color, color); dc.fillRectangle(x, y, width, height);
+        dc.setColor(color, color);
+        dc.fillRectangle(x, y, width, height);
     }
 
     private function thickLine(dc, x1, y1, x2, y2, color, width) {
-        dc.setColor(color, Graphics.COLOR_TRANSPARENT); dc.setPenWidth(width);
-        dc.drawLine(x1, y1, x2, y2); dc.setPenWidth(1);
+        dc.setColor(color, Graphics.COLOR_TRANSPARENT);
+        dc.setPenWidth(width);
+        dc.drawLine(x1, y1, x2, y2);
+        dc.setPenWidth(1);
     }
 
     private function centeredText(dc, x, centerY, font, value, color) {
@@ -228,7 +258,8 @@ class DashboardRenderer {
     }
 
     private function text(dc, x, y, font, value, justify, color) {
-        dc.setColor(color, Graphics.COLOR_TRANSPARENT); dc.drawText(x, y, font, value, justify);
+        dc.setColor(color, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(x, y, font, value, justify);
     }
 
     private function position(value, minimum, maximum, left, right) {
@@ -236,14 +267,23 @@ class DashboardRenderer {
         return left + ((right - left) * (clamped - minimum) / (maximum - minimum)).toNumber();
     }
 
-    private function formatInteger(value) { return value == null ? "--" : value.format("%d"); }
-    private function formatFloat(value, pattern) { return value == null ? "--" : value.format(pattern); }
-    private function formatSpeed(value) { return value == null ? "--" : (value * 3.6).format("%.1f"); }
+    private function formatInteger(value) {
+        return value == null ? "--" : value.format("%d");
+    }
+
+    private function formatSpeed(value, statute) {
+        if (value == null) { return "--"; }
+        return statute
+            ? (value * 2.236936).format("%.1f")
+            : (value * 3.6).format("%.1f");
+    }
+
     private function formatTime(seconds) {
         if (seconds == null) { return "--:--:--"; }
         var hours = (seconds / 3600).toNumber();
         var minutes = ((seconds % 3600) / 60).toNumber();
         var secs = (seconds % 60).toNumber();
-        return hours.format("%d") + ":" + minutes.format("%02d") + ":" + secs.format("%02d");
+        return hours.format("%d") + ":" + minutes.format("%02d") + ":" +
+            secs.format("%02d");
     }
 }

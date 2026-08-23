@@ -8,7 +8,7 @@ The initial product target is **Garmin Edge 840** with **Connect IQ API 6.0.0 or
 
 The product goal is simple:
 
-> Help the rider stay inside a sustainable aerobic envelope by showing live power, a heart-rate ceiling, cadence guidance, live aerobic-drift context, cumulative carbohydrate target, speed, and elapsed time on one calm, glanceable page.
+> Help the rider stay inside a sustainable aerobic envelope by showing live power, a heart-rate ceiling, cadence guidance, cumulative carbohydrate target, speed, and elapsed time on one calm, glanceable page.
 
 Prefer an opinionated endurance-specific experience over a generic configurable cycling dashboard.
 
@@ -50,11 +50,8 @@ and did not yet support the approved FTP fallback.
 
 The user may configure a 1-30 second moving-average filter for displayed power.
 It defaults to 1 second (raw current power). Apply the same filtered value to
-the power text and graph marker. Keep coaching and aerobic-drift calculations
-on raw current power. A missing current sample must display as unavailable and
+the power text and bar edge. A missing current sample must display as unavailable and
 must not reuse an earlier average.
-
-Coaching logic may use a short persistence delay so a single one-second spike does not cause the coaching header to flicker. The default power warning delay is 5 seconds unless changed by product requirements.
 
 ### Heart rate
 
@@ -63,7 +60,6 @@ Heart rate guidance is **ceiling-only**.
 - The user configures one HR ceiling.
 - There is no lower HR target.
 - Aerobic Guard must never instruct the rider to increase heart rate.
-- HR acts as a veto on power guidance: if HR is near or above the configured ceiling, do not instruct the rider to increase power merely because power is below its target range.
 
 On the first application start only, Aerobic Guard may initialize the HR
 ceiling from Garmin's configured cycling maximum Zone 2 threshold. If valid
@@ -92,15 +88,12 @@ Small Garmin zone-boundary ticks may be used if they improve readability, but th
 
 The project needs the appropriate `UserProfile` permission to read user profile/zone information.
 
-The default HR warning persistence is 20 seconds unless changed by product requirements.
-
 ### Cadence
 
 Cadence guidance uses a user-configured lower and upper limit.
 
-Cadence is advisory and lower priority than the HR ceiling and power guidance. Do not penalize or coach cadence while obviously coasting or when cadence data is unavailable.
-
-The default cadence warning persistence is 10 seconds unless changed by product requirements.
+Cadence is advisory and lower priority than the HR ceiling and power guidance.
+Do not interpret zero cadence while coasting as an instruction to pedal faster.
 
 On the first application start, initialize cadence guidance to 80-95 rpm and
 enable it. Preserve any existing non-zero cadence limits and never
@@ -144,80 +137,20 @@ Do not implement:
 - water reminders
 - hydration tracking
 
-### Aerobic drift
-
-Aerobic Guard may show a live **Drift** or **Drift Trend** value. This is live context, not a medical measurement and not a replacement for post-ride analysis in Garmin or Intervals.icu.
-
-Keep the algorithm isolated from the renderer and from the displayed 1-second power value.
-
-Initial algorithm unless explicitly changed:
-
-1. Ignore the first 15 minutes as warm-up.
-2. Build a baseline efficiency window over the next 15 minutes.
-3. Use a rolling 10-minute recent window for current efficiency.
-4. Do not display a meaningful drift percentage until at least 40 minutes of sufficiently valid data exists.
-5. Efficiency is based on the relationship between average power and average HR for a window.
-6. Drift percentage is:
-
-```text
-baselineEfficiency = baselineAveragePower / baselineAverageHeartRate
-recentEfficiency   = recentAveragePower / recentAverageHeartRate
-driftPercent       = (1 - recentEfficiency / baselineEfficiency) * 100
-```
-
-Only use valid samples. At minimum, HR and power must be present and positive and the activity must not be in a clearly invalid/stopped state. Keep validity rules explicit and testable.
-
-The default drift warning threshold is 5%, configurable by the user. Treat that threshold as a user-facing coaching threshold, not a universal physiological truth.
-
-Prefer bounded rolling aggregates/ring buffers or other memory-efficient structures. Do not retain the entire ride sample-by-sample.
-
-### Coaching state
-
-The top of the page provides one calm, actionable state rather than a composite percentage score.
-
-Expected states include:
-
-- `STEADY`
-- `EASE — HR HIGH`
-- `EASE POWER`
-- `LIFT POWER`
-- `SPIN FASTER`
-- `LOWER CADENCE`
-- sensor/data-unavailable states when necessary
-
-Base priority:
-
-1. Required sensor/data problem
-2. HR above ceiling for the configured persistence period
-3. Power above upper limit for the configured persistence period
-4. Power below lower limit, but only when HR does not veto that instruction
-5. Cadence below lower limit
-6. Cadence above upper limit
-7. `STEADY`
-
-When power is low but HR is close to the ceiling, prefer `STEADY` or a neutral HR-context message over `LIFT POWER`.
-
-Keep coaching decisions deterministic and testable. Avoid rapid state flicker.
-
 ## UI and interaction
 
 Design first for a **full-screen Edge 840 data-field page**. The screen must remain useful at a glance while riding.
 
 Suggested information hierarchy:
 
-1. App name / coaching state
-2. Power value + target-range gauge
-3. HR value + ceiling gauge using Garmin cycling-zone min/max as drawing limits
-4. Cadence value + target-range gauge
-5. Drift + cumulative carbs-by-now
-6. Speed + elapsed time
+1. Power value + target-range live bar
+2. HR value + ceiling live bar using Garmin cycling-zone min/max as drawing limits
+3. Cadence value + target-range live bar
+4. Cumulative carbs-by-now + speed + elapsed time
 
 A conceptual layout is:
 
 ```text
-+----------------------------+
-|       AEROBIC GUARD        |
-|           STEADY           |
 +----------------------------+
 | POWER               187 W  |
 | -------[====o====]-------  |
@@ -232,8 +165,7 @@ A conceptual layout is:
 | -------[===o===]---------  |
 |           82-95 rpm        |
 +----------------------------+
-| DRIFT +2.1%  CARBS NOW 80 g|
-| 28.6 km/h        01:23:41  |
+| 80 g   28.6 km/h   01:23:41|
 +----------------------------+
 ```
 
@@ -246,15 +178,24 @@ This ASCII layout is conceptual, not a pixel-perfect specification.
 - Keep text and markers legible at Edge 840 resolution.
 - Avoid decorative complexity.
 - The current power indicator should update every second using the configured
-  moving-average window.
+  moving-average window. Show `1s` for the raw one-second setting.
 - Show the active moving-average window directly beneath the `PWR` label.
-- Power and cadence target gauges use 0.8 times the configured lower limit as
+- Power and cadence live bars use 0.8 times the configured lower limit as
   the drawing minimum and 1.2 times the configured upper limit as the drawing
-  maximum. Visually clamp current-value markers to those endpoints while
+  maximum. Visually clamp the color-fill edge to those endpoints while
   keeping the displayed numeric measurement unchanged.
+- Enabled power, HR, and cadence fields divide the available primary-metric
+  area equally. Disabled guidance fields are absent and the remaining fields
+  expand without changing their order.
 - HR ceiling should be visually prominent.
 - Missing sensor values must be clearly represented without misleading zeros.
-- Keep renderer/layout code separate from metric and coaching logic.
+- Speed follows Garmin's configured distance units and shows `km/h` or `mph`
+  beside the numeric footer value.
+- A power or cadence value below the drawing minimum uses a small fixed-width
+  amber under-range stub so zero remains visibly below range even though its
+  proportional bar fill would otherwise have zero width. This is range context,
+  not a cadence instruction while coasting.
+- Keep renderer/layout code separate from metric logic.
 
 ## Settings
 
@@ -267,14 +208,12 @@ Expected settings:
 - enable power guidance
 - lower power limit in watts
 - upper power limit in watts
-- power warning delay in seconds
 - displayed-power moving-average window in seconds (1-30, default 1)
 
 ### Heart rate
 
 - enable HR guidance
 - HR ceiling in bpm
-- HR warning delay in seconds
 
 HR graph min/max are automatic from Garmin cycling zones and are not normal user settings.
 
@@ -283,17 +222,11 @@ HR graph min/max are automatic from Garmin cycling zones and are not normal user
 - enable cadence guidance
 - lower cadence limit in rpm
 - upper cadence limit in rpm
-- cadence warning delay in seconds
 
 ### Fueling
 
 - enable carbohydrate target display
 - carbohydrate rate in grams/hour
-
-### Drift
-
-- enable drift display
-- drift warning threshold in percent
 
 Do not add settings merely because they are easy to add. Prefer a small, coherent product.
 
@@ -353,7 +286,8 @@ The generic repository FIT analysis tools described later in this file may be us
 - `compute(info)` receives `Activity.Info` once per second under normal data-field operation. Keep computation bounded and lightweight.
 - Initialize state outside `compute()`. Garmin does not guarantee that `compute()` runs before `onUpdate()`.
 - Null-check all optional `Activity.Info` values.
-- Keep metric collection, coaching/state logic, drift/fueling calculations, settings, and rendering separated enough to test independently.
+- Keep metric collection, fueling calculations, settings,
+  and rendering separated enough to test independently.
 - Avoid unnecessary allocations in once-per-second hot paths.
 - Prefer small fixed-size state over unbounded arrays.
 - Do not use Sensor APIs that are invalid for data fields when the needed metric is already available through `Activity.Info`.
