@@ -481,3 +481,34 @@ posts, while the distinct silhouette remains readable over every status color.
 **Consequences:** Each enabled primary field adds ride-average context without
 additional text or settings. The marker is positional only; it does not alter
 the displayed live value or any guidance behavior.
+
+## 2026-08-23 — Six-device responsive private beta
+
+**Decision:** Support only Edge 540, 550, 840, 850, 1040, and 1050 using four
+full-screen resolution tiers. Smaller placements show a requirement message.
+Normalize activity values into a preallocated display state and clear readings
+and rolling power history at every timer lifecycle transition. Release signing
+uses the isolated host-only workflow and prerelease version `1.0.0-beta`.
+
+**Rationale:** The same endurance semantics fit these Edge displays when
+geometry and input affordances scale, while explicit placement and release
+boundaries avoid misleading compact UI and unsafe key handling.
+
+**Consequences:** All six products share calculations and settings. Button
+models use focused keypad activation; touch models use coordinates. Simulator,
+physical, upload, and review evidence remains explicitly incomplete until run.
+
+## 2026-08-23 — Resolve resources before custom drawing
+
+**Decision:** Convert every rider-facing `Rez.Strings` resource identifier to a
+`String` before passing it to custom graphics, measurement, concatenation, or
+mutable menu-label APIs. Cache dashboard strings when the renderer initializes.
+
+**Rationale:** Connect IQ resource identifiers are not strings. Custom graphics
+rendered them as `ResourceId`, and measuring an unavailable resource identifier
+could abort an update immediately after the screen was cleared.
+
+**Consequences:** The dashboard renders its normal unavailable state before the
+first activity sample, labels contain their English text, and the hot path does
+not repeatedly load static resources. Repository tests reject direct resource
+identifier use at these UI boundaries.

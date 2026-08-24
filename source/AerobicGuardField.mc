@@ -9,7 +9,8 @@ class AerobicGuardField extends WatchUi.DataField {
     var mCarbs as CarbCalculator;
     var mRenderer as DashboardRenderer;
     var mPowerAverage as PowerMovingAverage;
-    var mState as Dictionary;
+    var mState as DisplayState;
+    var mNormalizer as ActivityValueNormalizer;
     var mZoneInitializationPending;
 
     function initialize() {
@@ -19,9 +20,8 @@ class AerobicGuardField extends WatchUi.DataField {
         mRenderer = new DashboardRenderer();
         mPowerAverage = new PowerMovingAverage();
         mZoneInitializationPending = true;
-        mState = { :power => null, :heartRate => null, :cadence => null, :speed => null,
-            :averagePower => null, :averageHeartRate => null, :averageCadence => null,
-            :elapsed => null, :carbs => null, :hrMin => null, :hrMax => null };
+        mState = new DisplayState();
+        mNormalizer = new ActivityValueNormalizer();
         loadHrRange();
     }
 
@@ -33,30 +33,42 @@ class AerobicGuardField extends WatchUi.DataField {
             new ZoneDefaultsInitializer().initializeOnce();
             mSettings.reload();
         }
-        var power = info.currentPower;
-        var heartRate = info.currentHeartRate;
-        var cadence = info.currentCadence;
-        var speed = info.currentSpeed;
+        var power = mNormalizer.number(info.currentPower, false);
+        var heartRate = mNormalizer.number(info.currentHeartRate, false);
+        var cadence = mNormalizer.number(info.currentCadence, false);
+        var speed = mNormalizer.number(info.currentSpeed, false);
         // Activity.Info elapsed values are milliseconds.
-        var elapsed = info.elapsedTime == null ? null : (info.elapsedTime / 1000).toNumber();
-        mState[:power] = mPowerAverage.add(power, mSettings.powerAverageSeconds);
-        mState[:heartRate] = heartRate;
-        mState[:cadence] = cadence;
-        mState[:averagePower] = info.averagePower;
-        mState[:averageHeartRate] = info.averageHeartRate;
-        mState[:averageCadence] = info.averageCadence;
-        mState[:speed] = speed;
-        mState[:elapsed] = elapsed;
-        mState[:carbs] = mCarbs.calculate(elapsed, mSettings.carbRate);
+        var elapsedMs = mNormalizer.number(info.elapsedTime, false);
+        var elapsed = elapsedMs == null ? null : (elapsedMs / 1000).toNumber();
+        mState.power = mPowerAverage.add(power, mSettings.powerAverageSeconds);
+        mState.heartRate = heartRate;
+        mState.cadence = cadence;
+        mState.averagePower = mNormalizer.number(info.averagePower, false);
+        mState.averageHeartRate = mNormalizer.number(info.averageHeartRate, false);
+        mState.averageCadence = mNormalizer.number(info.averageCadence, false);
+        mState.speed = speed;
+        mState.elapsed = elapsed;
+        mState.carbs = mCarbs.calculate(elapsed, mSettings.carbRate);
     }
 
     function onUpdate(dc as Dc) as Void { mRenderer.draw(dc, mState, mSettings); }
+
+    function onTimerStart() as Void { clearActivityState(); }
+    function onTimerPause() as Void { clearActivityState(); }
+    function onTimerResume() as Void { clearActivityState(); }
+    function onTimerStop() as Void { clearActivityState(); }
+    function onTimerReset() as Void { clearActivityState(); }
+
+    private function clearActivityState() {
+        mState.clearReadings();
+        mPowerAverage.reset();
+    }
 
     private function loadHrRange() {
         try {
             var zones = UserProfile.getHeartRateZones2(Activity.SPORT_CYCLING);
             if (zones != null && zones.size() == 6 && zones[0] != null && zones[5] != null && zones[0] > 0 && zones[5] > zones[0]) {
-                mState[:hrMin] = zones[0]; mState[:hrMax] = zones[5];
+                mState.hrMin = zones[0]; mState.hrMax = zones[5];
             }
         } catch (error) {
             // Numeric HR and the configured ceiling remain useful without zone data.

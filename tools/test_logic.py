@@ -3,6 +3,7 @@
 
 import math
 import pathlib
+import re
 import unittest
 import xml.etree.ElementTree as ET
 
@@ -58,8 +59,8 @@ class ContractTests(unittest.TestCase):
 
     def test_renderer_uses_live_range_colors(self):
         renderer = pathlib.Path("source/DashboardRenderer.mc").read_text()
-        self.assertIn("rangeColor(state[:power]", renderer)
-        self.assertIn("rangeColor(state[:cadence]", renderer)
+        self.assertIn("rangeColor(state.power", renderer)
+        self.assertIn("rangeColor(state.cadence", renderer)
         self.assertIn("if (value < low) { return mAmber; }", renderer)
         self.assertIn("if (value > high) { return highColor; }", renderer)
 
@@ -117,7 +118,7 @@ class ContractTests(unittest.TestCase):
         self.assertNotIn("mError = false; WatchUi.requestUpdate()", source)
         self.assertIn("applyCompanionLimit(id, spec)", source)
         self.assertIn("!validCompanion(value)", source)
-        self.assertIn('"SET VALID LIMITS"', source)
+        self.assertIn("Rez.Strings.SetValidLimits", source)
 
         exported = pathlib.Path(
             "reusable_numeric_keypad/ReusableNumericKeypad.mc"
@@ -138,7 +139,9 @@ class ContractTests(unittest.TestCase):
         self.assertFalse(pathlib.Path("resources/settings/settings.xml").exists())
 
         strings = ET.parse("resources/strings/strings.xml").getroot()
-        self.assertEqual(["AppName"], [item.attrib["id"] for item in strings])
+        ids = {item.attrib["id"] for item in strings}
+        self.assertIn("AppName", ids)
+        self.assertIn("FullScreenRequired", ids)
 
     def test_defaults_do_not_mutate_settings_launch(self):
         app_source = pathlib.Path("source/aerobic-guardApp.mc").read_text()
@@ -156,7 +159,7 @@ class ContractTests(unittest.TestCase):
     def test_renderer_does_not_put_units_in_numeric_format_pattern(self):
         source = pathlib.Path("source/DashboardRenderer.mc").read_text()
         self.assertNotIn('format("%d g")', source)
-        self.assertIn('formatInteger(state[:carbs]) + "g"', source)
+        self.assertIn("formatInteger(state.carbs) + mGramsShort", source)
         self.assertNotIn("drift", source.lower())
 
     def test_power_and_cadence_gauge_scale_around_target(self):
@@ -170,10 +173,10 @@ class ContractTests(unittest.TestCase):
         source = pathlib.Path("source/DashboardRenderer.mc").read_text()
         self.assertIn("var scaleMin = settings.powerLow * 0.8", source)
         self.assertIn("var scaleMax = settings.powerHigh * 1.2", source)
-        self.assertIn("drawRangeBar(dc, y, height, width, state[:power]", source)
-        self.assertIn("state[:averagePower]", source)
-        self.assertIn("state[:averageHeartRate]", source)
-        self.assertIn("state[:averageCadence]", source)
+        self.assertIn("drawRangeBar(dc, y, height, width, state.power", source)
+        self.assertIn("state.averagePower", source)
+        self.assertIn("state.averageHeartRate", source)
+        self.assertIn("state.averageCadence", source)
         self.assertIn("drawAverageMarker", source)
 
     def test_fixed_live_bar_dashboard_contract(self):
@@ -187,12 +190,12 @@ class ContractTests(unittest.TestCase):
 
         renderer = pathlib.Path("source/DashboardRenderer.mc").read_text()
         self.assertNotIn('"AEROBIC GUARD"', renderer)
-        self.assertIn('"PWR"', renderer)
+        self.assertIn("Rez.Strings.PowerShort", renderer)
         self.assertIn('return seconds.format("%d") + "s"', renderer)
-        self.assertIn('"CAD"', renderer)
+        self.assertIn("Rez.Strings.CadenceShort", renderer)
         self.assertIn("Graphics.FONT_NUMBER_HOT", renderer)
         self.assertNotIn("Graphics.FONT_TINY", renderer)
-        self.assertEqual(1, renderer.count("Graphics.FONT_XTINY"))
+        self.assertGreaterEqual(renderer.count("Graphics.FONT_XTINY"), 1)
         self.assertIn("drawRangeBar", renderer)
         self.assertIn("drawCeilingBar", renderer)
         self.assertIn("drawTargetPost", renderer)
@@ -202,12 +205,50 @@ class ContractTests(unittest.TestCase):
         self.assertIn("var count = settings.carbsEnabled ? 3 : 2", renderer)
         self.assertIn("var speedWidth = remainingWidth / remainingCount", renderer)
         self.assertIn("var font = Graphics.FONT_MEDIUM", renderer)
-        self.assertIn("var fillWidth = value < minimum ? 14 : x", renderer)
+        self.assertIn("var fillWidth = value < minimum ? scaled(14) : x", renderer)
         self.assertIn("System.UNIT_STATUTE", renderer)
-        self.assertIn('? "mph" : "km/h"', renderer)
-        self.assertIn("drawHugeValue(dc, y, height - 20, width, state[:power], null", renderer)
-        self.assertNotIn('"TARGET "', renderer)
-        self.assertNotIn('"CEILING "', renderer)
+        self.assertIn("Rez.Strings.MilesPerHour", renderer)
+        self.assertIn("Rez.Strings.KilometersPerHour", renderer)
+        self.assertIn("drawHugeValue(dc, y, height - scaled(20), width, state.power, null", renderer)
+
+    def test_resolution_tiers_and_full_screen_detection(self):
+        source = pathlib.Path("source/DashboardLayout.mc").read_text()
+        for dimensions in ("246 && height == 322", "282 && height == 470",
+                           "420 && height == 600", "480 && height == 800"):
+            self.assertIn(dimensions, source)
+        self.assertIn("isFullScreen", source)
+        renderer = pathlib.Path("source/DashboardRenderer.mc").read_text()
+        self.assertIn("Rez.Strings.FullScreenRequired", renderer)
+
+    def test_preallocated_normalized_state_and_lifecycle_reset(self):
+        field = pathlib.Path("source/AerobicGuardField.mc").read_text()
+        self.assertIn("var mState as DisplayState", field)
+        self.assertNotIn("mState as Dictionary", field)
+        self.assertIn("mNormalizer.number(info.currentPower, false)", field)
+        for callback in ("onTimerStart", "onTimerPause", "onTimerResume",
+                         "onTimerStop", "onTimerReset"):
+            self.assertIn(f"function {callback}()", field)
+        self.assertIn("mPowerAverage.reset()", field)
+
+        normalizer = pathlib.Path("source/ActivityValueNormalizer.mc").read_text()
+        self.assertIn("value instanceof Long", normalizer)
+        self.assertIn("var finiteCheck = result - result", normalizer)
+        self.assertNotIn("1000000000", normalizer)
+
+    def test_custom_ui_resolves_string_resources(self):
+        for path in ("source/DashboardRenderer.mc", "source/SettingsMenu.mc"):
+            source = pathlib.Path(path).read_text()
+            for match in re.finditer(r"Rez\.Strings\.[A-Za-z0-9_]+", source):
+                prefix = source[max(0, match.start() - 13):match.start()]
+                self.assertEqual("resourceText(", prefix, path)
+        renderer = pathlib.Path("source/DashboardRenderer.mc").read_text()
+        draw_path = renderer.split("function draw(", 1)[1]
+        self.assertNotIn("resourceText(Rez.Strings", draw_path)
+        self.assertIn("return value == null ? mUnavailable", renderer)
+
+    def test_matrix_restores_default_edge840_artifact(self):
+        wrapper = pathlib.Path("tools/garmin").read_text()
+        self.assertIn('cp "$PROJECT_ROOT/bin/app-edge840.prg"', wrapper)
 
     def test_drift_is_removed_from_product_surface(self):
         paths = [

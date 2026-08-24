@@ -4,7 +4,9 @@
 
 Aerobic Guard is a Connect IQ **Data Field** for long aerobic / endurance cycling rides. It is not a workout player and must not attempt to replace Garmin's native structured-workout experience.
 
-The initial product target is **Garmin Edge 840** with **Connect IQ API 6.0.0 or newer**. Other devices may be considered later, but do not broaden declared product support unless explicitly requested.
+The supported products are Garmin Edge 540/540 Solar, 550, 840/840 Solar, 850,
+1040/1040 Solar, and 1050 with Connect IQ API 6.0.0 or newer. Do not broaden
+declared product support unless explicitly requested.
 
 The product goal is simple:
 
@@ -139,7 +141,8 @@ Do not implement:
 
 ## UI and interaction
 
-Design first for a **full-screen Edge 840 data-field page**. The screen must remain useful at a glance while riding.
+Design for a full-screen data-field page across the supported Edge products.
+Non-full-screen placements show only `FULL SCREEN REQUIRED`.
 
 Suggested information hierarchy:
 
@@ -280,7 +283,7 @@ The generic repository FIT analysis tools described later in this file may be us
 ## Connect IQ engineering rules
 
 - App type: Connect IQ Data Field.
-- Initial declared target: Edge 840.
+- Declared targets: Edge 540, 550, 840, 850, 1040, and 1050.
 - Minimum API level: 6.0.0 or newer.
 - Use `WatchUi.DataField`, not `SimpleDataField`, because the project requires custom full-screen drawing.
 - `compute(info)` receives `Activity.Info` once per second under normal data-field operation. Keep computation bounded and lightweight.
@@ -329,8 +332,8 @@ Durable project documentation lives under `docs/`. Start with
 `AGENTS.md` remains the product and engineering source of truth. Documentation
 must not weaken or contradict it. When behavior or workflow changes, update the
 relevant documentation in the same change rather than leaving future agents to
-infer the new state from source code. Keep documentation scoped to the declared
-Edge 840 product unless broader support is explicitly approved.
+infer the new state from source code. Keep documentation scoped to the six
+declared Edge products unless broader support is explicitly approved.
 
 ## Validation expectations
 
@@ -366,27 +369,23 @@ supported device and writes per-device programs under bin/. Do not invoke
 monkeyc directly unless diagnosing the wrapper. Do not hard-code an SDK
 version or modify mounted SDK or device files.
 
-Production packaging requires the existing externally stored developer key:
+Production and beta packaging use only the isolated trusted-host workflow:
 
 ```text
-GARMIN_DEVELOPER_KEY=/external/path/developer-key.der \
-    ./tools/garmin package 1.0.0
-```
-
-Package filenames use the project directory name by default. Set
-GARMIN_PACKAGE_NAME to override that name. Private-beta packaging additionally
-requires a beta UUID belonging to the new application:
-
-```text
-GARMIN_DEVELOPER_KEY=/external/path/developer-key.der \
+./tools/host-release prepare
 GARMIN_BETA_UUID=00000000-0000-0000-0000-000000000000 \
-GARMIN_PACKAGE_NAME=example-app \
-    ./tools/garmin package-beta 1.0.0
+    ./tools/host-release beta
 ```
 
-Never reuse another application's production or beta UUID. The wrapper reads
-the production UUID from manifest.xml and substitutes the beta UUID only in
-temporary packaging files.
+Private-beta packaging requires an externally supplied UUID belonging to this
+application. Production export is blocked while `VERSION` is a prerelease:
+
+```text
+./tools/host-release production
+```
+
+Never reuse another application's production or beta UUID. Never run the
+host-release wrapper from Codex or expose the real developer key.
 
 ./tools/simulator is only for a human using the graphical VS Code Docker
 container. It rebuilds the app, starts the Connect IQ simulator, and loads the

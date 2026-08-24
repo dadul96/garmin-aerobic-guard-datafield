@@ -33,7 +33,7 @@ class PowerMovingAverage {
         return ((mSum.toFloat() / mCount) + 0.5).toNumber();
     }
 
-    private function reset() {
+    function reset() {
         mNext = 0;
         mCount = 0;
         mSum = 0;

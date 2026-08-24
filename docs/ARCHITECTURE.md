@@ -1,9 +1,21 @@
 # Architecture
 
-Aerobic Guard is a full-screen Connect IQ data field targeting the Edge 840.
-The implementation keeps live collection, calculations, settings,
-and rendering separate so the once-per-second path remains bounded and the
-pure behavior can be tested.
+The same application contract covers six Edge products and four exact
+full-screen tiers: 246×322, 282×470, 420×600, and 480×800. `DashboardLayout`
+owns proportional regions, tier scale, and placement detection;
+`DashboardRenderer` owns white sunlight-oriented rendering. It never adds
+metrics on larger displays.
+
+`AerobicGuardField` normalizes nullable activity values through
+`ActivityValueNormalizer` into one preallocated `DisplayState`. Valid zero is
+preserved; malformed, non-finite, and negative physiological/elapsed readings
+become unavailable. Timer start, pause, resume, stop, and reset clear live
+presentation state and the fixed-capacity power-average history.
+
+Aerobic Guard is a full-screen Connect IQ data field targeting the six declared
+Edge products. The implementation keeps live collection, calculations,
+settings, and rendering separate so the once-per-second path remains bounded
+and the pure behavior can be tested.
 
 ## Runtime flow
 
@@ -50,11 +62,13 @@ State is initialized before `compute()` because Garmin does not guarantee that
   value and revalidate it on save. Incomplete or invalid target pairs cannot
   enable guidance. No Garmin Connect/host settings resource is exposed.
 - `CarbCalculator.mc`: completed-ten-minute-block carbohydrate calculation.
-- `DashboardLayout.mc`: allocation-free Edge 840 geometry for equal-height
-  enabled guidance bars and the compact telemetry rail. Hidden
-  bars contribute their space equally to those that remain.
-- `DashboardRenderer.mc`: the sunlight-oriented, full-screen Edge 840
-  presentation using black/white primary contrast and redundant color accents.
+- `DashboardLayout.mc`: allocation-free responsive geometry for equal-height
+  enabled guidance bars and the compact telemetry rail across the four
+  supported resolution tiers. Hidden bars contribute their space equally to
+  those that remain.
+- `DashboardRenderer.mc`: the sunlight-oriented, full-screen presentation using
+  black/white primary contrast, tier-specific sizing, and redundant color
+  accents.
 - `PowerMovingAverage.mc`: bounded rolling filter used only for the displayed
   power number and gauge marker.
 - `AerobicGuardTests.mc`: Garmin Run No Evil tests, excluded from production

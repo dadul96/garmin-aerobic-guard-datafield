@@ -139,20 +139,46 @@ function testAdvisoryDefaults(logger as Test.Logger) as Boolean {
 (:test)
 function testFixedLiveBarDashboardLayout(logger as Test.Logger) as Boolean {
     var layout = new DashboardLayout();
-    layout.configure(322, true, true, true);
+    layout.configure(246, 322, true, true, true);
     if (layout.powerY != 0 || layout.powerHeight != 94
             || layout.hrY != 94 || layout.hrHeight != 94
             || layout.cadenceY != 188 || layout.cadenceHeight != 94
             || layout.footerY != 282 || layout.footerHeight != 40) {
         return false;
     }
-    layout.configure(322, true, false, true);
+    layout.configure(246, 322, true, false, true);
     if (layout.powerY != 0 || layout.powerHeight != 141
             || layout.hrHeight != 0 || layout.cadenceY != 141
             || layout.cadenceHeight != 141) {
         return false;
     }
-    layout.configure(322, false, true, false);
+    layout.configure(246, 322, false, true, false);
     return layout.powerHeight == 0 && layout.hrY == 0
         && layout.hrHeight == 282 && layout.cadenceHeight == 0;
+}
+
+(:test)
+function testResponsiveLayoutTiers(logger as Test.Logger) as Boolean {
+    var layout = new DashboardLayout();
+    var sizes = [[246, 322], [282, 470], [420, 600], [480, 800]];
+    for (var index = 0; index < sizes.size(); index += 1) {
+        layout.configure(sizes[index][0], sizes[index][1], true, true, true);
+        if (!layout.isFullScreen || layout.powerHeight <= 0
+                || layout.powerHeight != layout.hrHeight
+                || layout.hrHeight != layout.cadenceHeight
+                || layout.footerY + layout.footerHeight != sizes[index][1]) {
+            return false;
+        }
+    }
+    layout.configure(200, 200, true, true, true);
+    return !layout.isFullScreen;
+}
+
+(:test)
+function testActivityValueNormalizer(logger as Test.Logger) as Boolean {
+    var normalizer = new ActivityValueNormalizer();
+    return normalizer.number(0, false) == 0
+        && normalizer.number(-1, false) == null
+        && normalizer.number("12", false) == null
+        && normalizer.number(12.5, false) == 12.5;
 }

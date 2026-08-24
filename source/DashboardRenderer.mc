@@ -7,6 +7,16 @@ class DashboardRenderer {
     var mGreen;
     var mAmber;
     var mRed;
+    var mFullScreenRequired;
+    var mPowerShort;
+    var mHeartRateShort;
+    var mCadenceShort;
+    var mMaximumLabel;
+    var mGramsShort;
+    var mMilesPerHour;
+    var mKilometersPerHour;
+    var mUnavailable;
+    var mUnavailableTime;
 
     function initialize() {
         mLayout = new DashboardLayout();
@@ -15,14 +25,33 @@ class DashboardRenderer {
         mGreen = Graphics.createColor(255, 0, 205, 0);
         mAmber = Graphics.createColor(255, 255, 185, 0);
         mRed = Graphics.createColor(255, 255, 65, 65);
+        // Custom Graphics drawing APIs require Strings, not ResourceIds.
+        // Resolve once here to keep the once-per-second path allocation-light.
+        mFullScreenRequired = resourceText(Rez.Strings.FullScreenRequired);
+        mPowerShort = resourceText(Rez.Strings.PowerShort);
+        mHeartRateShort = resourceText(Rez.Strings.HeartRateShort);
+        mCadenceShort = resourceText(Rez.Strings.CadenceShort);
+        mMaximumLabel = resourceText(Rez.Strings.MaximumLabel);
+        mGramsShort = resourceText(Rez.Strings.GramsShort);
+        mMilesPerHour = resourceText(Rez.Strings.MilesPerHour);
+        mKilometersPerHour = resourceText(Rez.Strings.KilometersPerHour);
+        mUnavailable = resourceText(Rez.Strings.Unavailable);
+        mUnavailableTime = resourceText(Rez.Strings.UnavailableTime);
     }
 
-    function draw(dc as Dc, state as Dictionary, settings as SettingsModel) {
+    function draw(dc as Dc, state as DisplayState, settings as SettingsModel) {
         var width = dc.getWidth();
-        mLayout.configure(dc.getHeight(), settings.powerEnabled,
+        mLayout.configure(width, dc.getHeight(), settings.powerEnabled,
             settings.hrEnabled, settings.cadenceEnabled);
         dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_WHITE);
         dc.clear();
+
+        if (!mLayout.isFullScreen) {
+            centeredText(dc, width / 2, dc.getHeight() / 2,
+                Graphics.FONT_MEDIUM, mFullScreenRequired,
+                Graphics.COLOR_BLACK);
+            return;
+        }
 
         if (settings.powerEnabled) { drawPower(dc, width, state, settings); }
         if (settings.hrEnabled) { drawHeartRate(dc, width, state, settings); }
@@ -30,73 +59,77 @@ class DashboardRenderer {
         drawFooter(dc, width, state, settings);
     }
 
-    private function drawPower(dc, width, state as Dictionary,
+    private function drawPower(dc, width, state as DisplayState,
             settings as SettingsModel) {
         var y = mLayout.powerY;
         var height = mLayout.powerHeight;
         var scaleMin = settings.powerLow * 0.8;
         var scaleMax = settings.powerHigh * 1.2;
-        var color = rangeColor(state[:power], settings.powerLow,
+        var color = rangeColor(state.power, settings.powerLow,
             settings.powerHigh, mRed);
-        drawRangeBar(dc, y, height, width, state[:power], scaleMin, scaleMax,
+        drawRangeBar(dc, y, height, width, state.power, scaleMin, scaleMax,
             settings.powerLow, settings.powerHigh, color);
-        drawHugeValue(dc, y, height - 20, width, state[:power], null,
+        drawHugeValue(dc, y, height - scaled(20), width, state.power, null,
             Graphics.FONT_NUMBER_HOT);
-        text(dc, 8, y + height - 36, Graphics.FONT_SMALL, "PWR",
+        text(dc, scaled(8), y + height - scaled(36), labelFont(),
+            mPowerShort,
             Graphics.TEXT_JUSTIFY_LEFT, Graphics.COLOR_BLACK);
-        text(dc, 8, y + height - 18, Graphics.FONT_SMALL,
+        text(dc, scaled(8), y + height - scaled(18), smallFont(),
             powerAverageLabel(settings.powerAverageSeconds),
             Graphics.TEXT_JUSTIFY_LEFT, Graphics.COLOR_BLACK);
-        text(dc, width - 8, y + height - 27, Graphics.FONT_SMALL,
+        text(dc, width - scaled(8), y + height - scaled(27), labelFont(),
             settings.powerLow.format("%d") + "-" +
                 settings.powerHigh.format("%d"),
             Graphics.TEXT_JUSTIFY_RIGHT, Graphics.COLOR_BLACK);
-        drawAverageMarker(dc, state[:averagePower], scaleMin, scaleMax, y,
+        drawAverageMarker(dc, state.averagePower, scaleMin, scaleMax, y,
             height, width);
     }
 
-    private function drawHeartRate(dc, width, state as Dictionary,
+    private function drawHeartRate(dc, width, state as DisplayState,
             settings as SettingsModel) {
         var y = mLayout.hrY;
         var height = mLayout.hrHeight;
-        var hasScale = settings.hrEnabled && state[:hrMin] != null
-            && state[:hrMax] != null;
-        drawCeilingBar(dc, y, height, width, state[:heartRate], state[:hrMin],
-            state[:hrMax], settings.hrCeiling, hasScale,
-            state[:heartRate] != null && state[:heartRate] > settings.hrCeiling
+        var hasScale = settings.hrEnabled && state.hrMin != null
+            && state.hrMax != null;
+        drawCeilingBar(dc, y, height, width, state.heartRate, state.hrMin,
+            state.hrMax, settings.hrCeiling, hasScale,
+            state.heartRate != null && state.heartRate > settings.hrCeiling
                 ? mRed : mGreen);
-        drawHugeValue(dc, y, height - 20, width, state[:heartRate], null,
+        drawHugeValue(dc, y, height - scaled(20), width, state.heartRate, null,
             Graphics.FONT_NUMBER_HOT);
-        text(dc, 8, y + height - 19, Graphics.FONT_SMALL, "HR",
+        text(dc, scaled(8), y + height - scaled(19), labelFont(),
+            mHeartRateShort,
             Graphics.TEXT_JUSTIFY_LEFT, Graphics.COLOR_BLACK);
-        text(dc, width - 8, y + height - 19, Graphics.FONT_SMALL,
-            "MAX " + settings.hrCeiling.format("%d"),
+        text(dc, width - scaled(8), y + height - scaled(19), labelFont(),
+            mMaximumLabel + " " +
+                settings.hrCeiling.format("%d"),
             Graphics.TEXT_JUSTIFY_RIGHT, Graphics.COLOR_BLACK);
         if (hasScale) {
-            drawAverageMarker(dc, state[:averageHeartRate], state[:hrMin],
-                state[:hrMax], y, height, width);
+            drawAverageMarker(dc, state.averageHeartRate, state.hrMin,
+                state.hrMax, y, height, width);
         }
     }
 
-    private function drawCadence(dc, width, state as Dictionary,
+    private function drawCadence(dc, width, state as DisplayState,
             settings as SettingsModel) {
         var y = mLayout.cadenceY;
         var height = mLayout.cadenceHeight;
         var scaleMin = settings.cadenceLow * 0.8;
         var scaleMax = settings.cadenceHigh * 1.2;
-        var color = rangeColor(state[:cadence], settings.cadenceLow,
+        var color = rangeColor(state.cadence, settings.cadenceLow,
             settings.cadenceHigh, mAmber);
-        drawRangeBar(dc, y, height, width, state[:cadence], scaleMin, scaleMax,
+        drawRangeBar(dc, y, height, width, state.cadence, scaleMin, scaleMax,
             settings.cadenceLow, settings.cadenceHigh, color);
-        drawHugeValue(dc, y, height - 19, width, state[:cadence], null,
+        drawHugeValue(dc, y, height - scaled(19), width, state.cadence, null,
             Graphics.FONT_NUMBER_HOT);
-        text(dc, 8, y + height - 19, Graphics.FONT_SMALL, "CAD",
+        text(dc, scaled(8), y + height - scaled(19), labelFont(),
+            mCadenceShort,
             Graphics.TEXT_JUSTIFY_LEFT, Graphics.COLOR_BLACK);
-        text(dc, width - 8, y + height - 19, Graphics.FONT_SMALL,
+        text(dc, width - scaled(8), y + height - scaled(19), labelFont(),
             settings.cadenceLow.format("%d") + "-" +
                 settings.cadenceHigh.format("%d"),
             Graphics.TEXT_JUSTIFY_RIGHT, Graphics.COLOR_BLACK);
-        drawAverageMarker(dc, state[:averageCadence], scaleMin, scaleMax, y,
+        drawAverageMarker(dc, state.averageCadence, scaleMin, scaleMax, y,
             height, width);
     }
 
@@ -106,7 +139,7 @@ class DashboardRenderer {
         if (maximum <= minimum) { return; }
         if (value != null) {
             var x = position(value, minimum, maximum, 0, width);
-            var fillWidth = value < minimum ? 14 : x;
+            var fillWidth = value < minimum ? scaled(14) : x;
             if (fillWidth > 0) { fill(dc, 0, y, fillWidth, height, color); }
         }
         drawTargetPost(dc, position(low, minimum, maximum, 0, width), y, height);
@@ -144,8 +177,8 @@ class DashboardRenderer {
     }
 
     private function drawTargetPost(dc, x, y, height) {
-        thickLine(dc, x, y + height - 22, x, y + height - 2,
-            Graphics.COLOR_BLACK, 5);
+        thickLine(dc, x, y + height - scaled(22), x, y + height - scaled(2),
+            Graphics.COLOR_BLACK, scaled(5));
     }
 
     // A white knockout keeps the bottom-edge average marker distinct when it
@@ -153,16 +186,18 @@ class DashboardRenderer {
     private function drawAverageMarker(dc, average, minimum, maximum, y,
             height, width) {
         if (average == null || maximum <= minimum) { return; }
-        var x = position(average, minimum, maximum, 8, width - 9);
-        var markerTop = y + height - 13;
-        for (var row = 0; row < 11; row += 1) {
-            var halfWidth = 8 - (row * 8 / 10).toNumber();
+        var markerSize = scaled(10);
+        var x = position(average, minimum, maximum, scaled(8), width - scaled(9));
+        var markerTop = y + height - markerSize - scaled(3);
+        for (var row = 0; row <= markerSize; row += 1) {
+            var halfWidth = scaled(8) - (row * scaled(8) / markerSize).toNumber();
             thickLine(dc, x - halfWidth, markerTop + row,
                 x + halfWidth, markerTop + row, Graphics.COLOR_WHITE, 1);
         }
-        markerTop += 2;
-        for (var innerRow = 0; innerRow < 7; innerRow += 1) {
-            var innerHalfWidth = 5 - (innerRow * 5 / 6).toNumber();
+        markerTop += scaled(2);
+        var innerSize = scaled(6);
+        for (var innerRow = 0; innerRow <= innerSize; innerRow += 1) {
+            var innerHalfWidth = scaled(5) - (innerRow * scaled(5) / innerSize).toNumber();
             thickLine(dc, x - innerHalfWidth, markerTop + innerRow,
                 x + innerHalfWidth, markerTop + innerRow,
                 Graphics.COLOR_BLACK, 1);
@@ -202,7 +237,7 @@ class DashboardRenderer {
         }
     }
 
-    private function drawFooter(dc, width, state as Dictionary,
+    private function drawFooter(dc, width, state as DisplayState,
             settings as SettingsModel) {
         var y = mLayout.footerY;
         var height = mLayout.footerHeight;
@@ -215,17 +250,17 @@ class DashboardRenderer {
         if (settings.carbsEnabled) {
             var carbWidth = remainingWidth / remainingCount;
             footerValue(dc, x, carbWidth, y, height,
-                formatInteger(state[:carbs]) + "g");
+                formatInteger(state.carbs) + mGramsShort);
             x += carbWidth;
             remainingWidth -= carbWidth;
             remainingCount -= 1;
             thickLine(dc, x, y, x, y + height, Graphics.COLOR_BLACK, 1);
         }
         var speedWidth = remainingWidth / remainingCount;
-        footerSpeed(dc, x, speedWidth, y, height, state[:speed], statute);
+        footerSpeed(dc, x, speedWidth, y, height, state.speed, statute);
         x += speedWidth;
         thickLine(dc, x, y, x, y + height, Graphics.COLOR_BLACK, 1);
-        footerValue(dc, x, width - x, y, height, formatTime(state[:elapsed]));
+        footerValue(dc, x, width - x, y, height, formatTime(state.elapsed));
         thickLine(dc, 0, y, width, y, Graphics.COLOR_BLACK, 2);
     }
 
@@ -240,7 +275,7 @@ class DashboardRenderer {
 
     private function footerSpeed(dc, x, width, y, height, value, statute) {
         var valueText = formatSpeed(value, statute);
-        var unit = statute ? "mph" : "km/h";
+        var unit = statute ? mMilesPerHour : mKilometersPerHour;
         var valueFont = Graphics.FONT_MEDIUM;
         var unitFont = Graphics.FONT_XTINY;
         var unitWidth = dc.getTextWidthInPixels(unit, unitFont);
@@ -269,10 +304,17 @@ class DashboardRenderer {
         return seconds.format("%d") + "s";
     }
 
+    private function scaled(value) { return (value * mLayout.scale / 100).toNumber(); }
+    private function labelFont() { return mLayout.scale >= 150 ? Graphics.FONT_MEDIUM : Graphics.FONT_SMALL; }
+    private function smallFont() {
+        return mLayout.scale >= 150 ? Graphics.FONT_MEDIUM : Graphics.FONT_SMALL;
+    }
+
     private function fillOutwardArrow(dc, x, y, pointsRight, color) {
-        for (var offset = 0; offset <= 9; offset += 1) {
-            var arrowX = pointsRight ? x - 9 + offset : x + 9 - offset;
-            var half = offset * 8 / 9;
+        var arrowSize = scaled(9);
+        for (var offset = 0; offset <= arrowSize; offset += 1) {
+            var arrowX = pointsRight ? x - arrowSize + offset : x + arrowSize - offset;
+            var half = offset * scaled(8) / arrowSize;
             thickLine(dc, arrowX, y - half, arrowX, y + half, color, 1);
         }
     }
@@ -305,18 +347,18 @@ class DashboardRenderer {
     }
 
     private function formatInteger(value) {
-        return value == null ? "--" : value.format("%d");
+        return value == null ? mUnavailable : value.format("%d");
     }
 
     private function formatSpeed(value, statute) {
-        if (value == null) { return "--"; }
+        if (value == null) { return mUnavailable; }
         return statute
             ? (value * 2.236936).format("%.1f")
             : (value * 3.6).format("%.1f");
     }
 
     private function formatTime(seconds) {
-        if (seconds == null) { return "--:--:--"; }
+        if (seconds == null) { return mUnavailableTime; }
         var hours = (seconds / 3600).toNumber();
         var minutes = ((seconds % 3600) / 60).toNumber();
         var secs = (seconds % 60).toNumber();

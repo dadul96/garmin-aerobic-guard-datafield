@@ -1,3 +1,7 @@
 project.manifest = manifest.xml
 base.sourcePath = source
 base.resourcePath = resources
+edge550.resourcePath = resources;resources-56
+edge850.resourcePath = resources;resources-56
+edge1040.resourcePath = resources;resources-40
+edge1050.resourcePath = resources;resources-68

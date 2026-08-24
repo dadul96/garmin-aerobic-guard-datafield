@@ -31,7 +31,7 @@ class SettingsMenuDelegate extends WatchUi.Menu2InputDelegate {
             var enabled = item.isEnabled();
             if (enabled && requiresValidRange(id) && !sectionRangeIsValid()) {
                 item.setEnabled(false);
-                item.setSubLabel("SET VALID LIMITS");
+                item.setSubLabel(resourceText(Rez.Strings.SetValidLimits));
                 enabled = false;
             }
             Application.Properties.setValue(propertyKey(id), enabled);
@@ -60,24 +60,31 @@ class SettingsMenuDelegate extends WatchUi.Menu2InputDelegate {
     private function buildSection(id) {
         var menu;
         if (id == :power) {
-            menu = new SettingsMenu("Power");
-            addToggle(menu, "Guidance", :powerEnabled);
-            addNumber(menu, "Lower limit", :powerLow, " W");
-            addNumber(menu, "Upper limit", :powerHigh, " W");
-            addNumber(menu, "Moving average", :powerAverageSeconds, " s");
+            menu = new SettingsMenu(resourceText(Rez.Strings.Power));
+            addToggle(menu, resourceText(Rez.Strings.Guidance), :powerEnabled);
+            addNumber(menu, resourceText(Rez.Strings.LowerLimit), :powerLow,
+                resourceText(Rez.Strings.WattsUnit));
+            addNumber(menu, resourceText(Rez.Strings.UpperLimit), :powerHigh,
+                resourceText(Rez.Strings.WattsUnit));
+            addNumber(menu, resourceText(Rez.Strings.MovingAverage),
+                :powerAverageSeconds, resourceText(Rez.Strings.SecondsUnit));
         } else if (id == :heartRate) {
-            menu = new SettingsMenu("Heart Rate");
-            addToggle(menu, "Guidance", :hrEnabled);
-            addNumber(menu, "Ceiling", :hrCeiling, " bpm");
+            menu = new SettingsMenu(resourceText(Rez.Strings.HeartRate));
+            addToggle(menu, resourceText(Rez.Strings.Guidance), :hrEnabled);
+            addNumber(menu, resourceText(Rez.Strings.Ceiling), :hrCeiling,
+                resourceText(Rez.Strings.BpmUnit));
         } else if (id == :cadence) {
-            menu = new SettingsMenu("Cadence");
-            addToggle(menu, "Guidance", :cadenceEnabled);
-            addNumber(menu, "Lower limit", :cadenceLow, " rpm");
-            addNumber(menu, "Upper limit", :cadenceHigh, " rpm");
+            menu = new SettingsMenu(resourceText(Rez.Strings.Cadence));
+            addToggle(menu, resourceText(Rez.Strings.Guidance), :cadenceEnabled);
+            addNumber(menu, resourceText(Rez.Strings.LowerLimit), :cadenceLow,
+                resourceText(Rez.Strings.RpmUnit));
+            addNumber(menu, resourceText(Rez.Strings.UpperLimit), :cadenceHigh,
+                resourceText(Rez.Strings.RpmUnit));
         } else {
-            menu = new SettingsMenu("Fueling");
-            addToggle(menu, "Show target", :carbsEnabled);
-            addNumber(menu, "Carbohydrate rate", :carbRate, " g/h");
+            menu = new SettingsMenu(resourceText(Rez.Strings.Fueling));
+            addToggle(menu, resourceText(Rez.Strings.ShowTarget), :carbsEnabled);
+            addNumber(menu, resourceText(Rez.Strings.CarbohydrateRate),
+                :carbRate, resourceText(Rez.Strings.CarbsRateUnit));
         }
         return menu;
     }
@@ -85,7 +92,7 @@ class SettingsMenuDelegate extends WatchUi.Menu2InputDelegate {
     private function addToggle(menu, label, id) {
         var enabled = Application.Properties.getValue(propertyKey(id)) == true;
         var status = requiresValidRange(id) && !rangeIsValid(id)
-            ? "SET VALID LIMITS" : null;
+            ? resourceText(Rez.Strings.SetValidLimits) : null;
         var item = new WatchUi.ToggleMenuItem(label, status, id, enabled, null);
         menu.guidanceItem = item;
         menu.addItem(item);
@@ -93,7 +100,8 @@ class SettingsMenuDelegate extends WatchUi.Menu2InputDelegate {
 
     private function addNumber(menu, label, id, unit) {
         var value = numberProperty(propertyKey(id), 0);
-        menu.addItem(new WatchUi.MenuItem(label, value.format("%d") + unit, id, null));
+        menu.addItem(new WatchUi.MenuItem(label, value.format("%d") +
+            unit, id, null));
     }
 
     private function numberProperty(key, fallback) {
@@ -118,13 +126,13 @@ class SettingsMenuDelegate extends WatchUi.Menu2InputDelegate {
 
     // [title, minimum, maximum, display unit]
     private function numberSpec(id) {
-        if (id == :powerLow) { return ["Power lower (W)", 1, 1000, " W"]; }
-        if (id == :powerHigh) { return ["Power upper (W)", 1, 1000, " W"]; }
-        if (id == :powerAverageSeconds) { return ["Power average (s)", 1, 30, " s"]; }
-        if (id == :hrCeiling) { return ["HR ceiling", 1, 250, " bpm"]; }
-        if (id == :cadenceLow) { return ["Cadence lower", 1, 250, " rpm"]; }
-        if (id == :cadenceHigh) { return ["Cadence upper", 1, 250, " rpm"]; }
-        return ["Carbs (g/h)", 1, 200, " g/h"];
+        if (id == :powerLow) { return [resourceText(Rez.Strings.PowerLowerTitle), 1, 1000, resourceText(Rez.Strings.WattsUnit)]; }
+        if (id == :powerHigh) { return [resourceText(Rez.Strings.PowerUpperTitle), 1, 1000, resourceText(Rez.Strings.WattsUnit)]; }
+        if (id == :powerAverageSeconds) { return [resourceText(Rez.Strings.PowerAverageTitle), 1, 30, resourceText(Rez.Strings.SecondsUnit)]; }
+        if (id == :hrCeiling) { return [resourceText(Rez.Strings.HrCeilingTitle), 1, 250, resourceText(Rez.Strings.BpmUnit)]; }
+        if (id == :cadenceLow) { return [resourceText(Rez.Strings.CadenceLowerTitle), 1, 250, resourceText(Rez.Strings.RpmUnit)]; }
+        if (id == :cadenceHigh) { return [resourceText(Rez.Strings.CadenceUpperTitle), 1, 250, resourceText(Rez.Strings.RpmUnit)]; }
+        return [resourceText(Rez.Strings.CarbsTitle), 1, 200, resourceText(Rez.Strings.CarbsRateUnit)];
     }
 
     private function applyCompanionLimit(id, spec as Array<Object>) {
@@ -204,17 +212,24 @@ class NumericKeypad extends WatchUi.View {
         var secondary = dark ? Graphics.COLOR_LT_GRAY : Graphics.COLOR_DK_GRAY;
         dc.setColor(foreground, background); dc.clear();
         dc.setColor(foreground, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(width / 2, 4, Graphics.FONT_SMALL, mTitle, Graphics.TEXT_JUSTIFY_CENTER);
+        var titleFont = height >= 600 ? Graphics.FONT_MEDIUM : Graphics.FONT_SMALL;
+        var valueFont = height >= 600 ? Graphics.FONT_NUMBER_HOT : Graphics.FONT_NUMBER_MEDIUM;
+        var cellFont = height >= 600 ? Graphics.FONT_LARGE : Graphics.FONT_MEDIUM;
+        dc.drawText(width / 2, 4, titleFont, mTitle, Graphics.TEXT_JUSTIFY_CENTER);
         var displayText = mModel.text();
-        dc.drawText(width / 2, (mGridTop * 35 / 100).toNumber(), Graphics.FONT_NUMBER_MEDIUM,
-            displayText.length() == 0 ? "--" : displayText, Graphics.TEXT_JUSTIFY_CENTER);
+        dc.drawText(width / 2, (mGridTop * 35 / 100).toNumber(), valueFont,
+            displayText.length() == 0
+                ? resourceText(Rez.Strings.Unavailable) : displayText,
+            Graphics.TEXT_JUSTIFY_CENTER);
         dc.setColor(mError ? foreground : secondary, Graphics.COLOR_TRANSPARENT);
-        var hint = mError ? "ENTER " + mMinimum.format("%d") + "-" + mMaximum.format("%d")
+        var hint = mError ? resourceText(Rez.Strings.Enter) + " " + mMinimum.format("%d") + "-" + mMaximum.format("%d")
             : mMinimum.format("%d") + "-" + mMaximum.format("%d");
         dc.drawText(width / 2, mGridTop - dc.getFontHeight(Graphics.FONT_XTINY) - 3,
             Graphics.FONT_XTINY, hint, Graphics.TEXT_JUSTIFY_CENTER);
 
-        var labels = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "<", "0", "OK"];
+        var labels = ["1", "2", "3", "4", "5", "6", "7", "8", "9",
+            resourceText(Rez.Strings.Backspace), "0",
+            resourceText(Rez.Strings.Okay)];
         var cellHeight = (height - mGridTop) / 4; var cellWidth = width / 3;
         for (var row = 0; row < 4; row += 1) {
             for (var column = 0; column < 3; column += 1) {
@@ -229,8 +244,8 @@ class NumericKeypad extends WatchUi.View {
                     dc.drawRectangle(x + 2, y + 2, cellWidth - 4, cellHeight - 4);
                     dc.setColor(foreground, Graphics.COLOR_TRANSPARENT);
                 }
-                dc.drawText(x + cellWidth / 2, y + (cellHeight - dc.getFontHeight(Graphics.FONT_MEDIUM)) / 2,
-                    Graphics.FONT_MEDIUM, labels[action], Graphics.TEXT_JUSTIFY_CENTER);
+                dc.drawText(x + cellWidth / 2, y + (cellHeight - dc.getFontHeight(cellFont)) / 2,
+                    cellFont, labels[action], Graphics.TEXT_JUSTIFY_CENTER);
             }
         }
     }
@@ -337,7 +352,8 @@ class NumericKeypadDelegate extends WatchUi.BehaviorDelegate {
         var valid = isValidTargetRange(
             numberProperty(power ? "powerLow" : "cadenceLow"),
             numberProperty(power ? "powerHigh" : "cadenceHigh"));
-        mGuidanceItem.setSubLabel(valid ? null : "SET VALID LIMITS");
+        mGuidanceItem.setSubLabel(valid ? null
+            : resourceText(Rez.Strings.SetValidLimits));
     }
 
     private function refreshPad() {
@@ -354,10 +370,18 @@ class NumericKeypadDelegate extends WatchUi.BehaviorDelegate {
 }
 
 function buildSettingsMenu() {
-    var menu = new SettingsMenu("Aerobic Guard");
-    menu.addItem(new WatchUi.MenuItem("Power", null, :power, null));
-    menu.addItem(new WatchUi.MenuItem("Heart Rate", null, :heartRate, null));
-    menu.addItem(new WatchUi.MenuItem("Cadence", null, :cadence, null));
-    menu.addItem(new WatchUi.MenuItem("Fueling", null, :fueling, null));
+    var menu = new SettingsMenu(resourceText(Rez.Strings.AppName));
+    menu.addItem(new WatchUi.MenuItem(resourceText(Rez.Strings.Power), null,
+        :power, null));
+    menu.addItem(new WatchUi.MenuItem(resourceText(Rez.Strings.HeartRate), null,
+        :heartRate, null));
+    menu.addItem(new WatchUi.MenuItem(resourceText(Rez.Strings.Cadence), null,
+        :cadence, null));
+    menu.addItem(new WatchUi.MenuItem(resourceText(Rez.Strings.Fueling), null,
+        :fueling, null));
     return menu;
+}
+
+function resourceText(id) as String {
+    return WatchUi.loadResource(id) as String;
 }

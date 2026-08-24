@@ -1,3 +1,25 @@
 <strings xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://developer.garmin.com/downloads/connect-iq/resources.xsd">
     <string id="AppName">Aerobic Guard</string>
+    <string id="FullScreenRequired">FULL SCREEN REQUIRED</string>
+    <string id="PowerShort">PWR</string>
+    <string id="HeartRateShort">HR</string>
+    <string id="CadenceShort">CAD</string>
+    <string id="MaximumLabel">MAX</string>
+    <string id="GramsShort">g</string>
+    <string id="MilesPerHour">mph</string>
+    <string id="KilometersPerHour">km/h</string>
+    <string id="Power">Power</string><string id="HeartRate">Heart Rate</string>
+    <string id="Cadence">Cadence</string><string id="Fueling">Fueling</string>
+    <string id="Guidance">Guidance</string><string id="ShowTarget">Show target</string>
+    <string id="LowerLimit">Lower limit</string><string id="UpperLimit">Upper limit</string>
+    <string id="MovingAverage">Moving average</string><string id="Ceiling">Ceiling</string>
+    <string id="CarbohydrateRate">Carbohydrate rate</string>
+    <string id="SetValidLimits">SET VALID LIMITS</string><string id="Enter">ENTER</string>
+    <string id="PowerLowerTitle">Power lower (W)</string><string id="PowerUpperTitle">Power upper (W)</string>
+    <string id="PowerAverageTitle">Power average (s)</string><string id="HrCeilingTitle">HR ceiling</string>
+    <string id="CadenceLowerTitle">Cadence lower</string><string id="CadenceUpperTitle">Cadence upper</string>
+    <string id="CarbsTitle">Carbs (g/h)</string><string id="Backspace">&lt;</string><string id="Okay">OK</string>
+    <string id="WattsUnit"> W</string><string id="SecondsUnit"> s</string>
+    <string id="BpmUnit"> bpm</string><string id="RpmUnit"> rpm</string><string id="CarbsRateUnit"> g/h</string>
+    <string id="Unavailable">--</string><string id="UnavailableTime">--:--:--</string>
 </strings>
