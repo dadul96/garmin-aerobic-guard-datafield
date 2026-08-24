@@ -11,10 +11,13 @@ stage="$ciq_host/aerobic-guard/staging"
 output="$ciq_host/aerobic-guard/output"
 key="${GARMIN_DEVELOPER_KEY:-$ciq_host/secrets/garmin_developer_key.der}"
 production_uuid="29798159-d77e-4692-9e58-8808897fbeb1"
+beta_uuid="bb058c81-d5e0-4f70-a1d0-e920fd1e890b"
 
 fail() { echo "Host release error: $*" >&2; exit 1; }
 validate_root() {
     [[ "$ciq_host" == /* && "$ciq_host" != / && "$ciq_host" != "$HOME" ]] || fail "CIQ_HOST is unsafe"
+    [[ "$production_uuid" =~ ^[0-9a-fA-F-]{36}$ ]] || fail "production UUID is invalid"
+    [[ "$beta_uuid" =~ ^[0-9a-fA-F-]{36}$ && "$beta_uuid" != "$production_uuid" ]] || fail "beta UUID must be distinct from production"
 }
 prepare() {
     validate_root
@@ -26,17 +29,17 @@ prepare() {
     cp -R -- "$project_root/source/." "$stage/source/"
     for resource_dir in "$project_root"/resources*; do cp -R -- "$resource_dir" "$stage/"; done
     cp -- "$project_root/manifest.xml" "$project_root/monkey.jungle" "$stage/"
+    grep -Fq "$production_uuid" "$stage/manifest.xml" || fail "manifest does not contain the production UUID"
     chmod -R go-rwx "$stage" "$output"
     echo "Prepared Aerobic Guard release stage: $stage"
 }
 export_package() {
-    local mode="$1" beta_uuid="${GARMIN_BETA_UUID:-}" suffix=""
+    local mode="$1" suffix=""
     validate_root
     [[ -d "$stage/source" ]] || fail "run prepare first"
     [[ -f "$key" ]] || fail "external developer key is missing"
     [[ "$mode" == beta ]] || [[ "$version" != *-* ]] || fail "production is blocked for prerelease VERSION"
     if [[ "$mode" == beta ]]; then
-        [[ "$beta_uuid" =~ ^[0-9a-fA-F-]{36}$ && "$beta_uuid" != "$production_uuid" ]] || fail "supply a distinct GARMIN_BETA_UUID"
         suffix="-beta"
     fi
     docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges \
@@ -48,14 +51,22 @@ export_package() {
       --tmpfs /tmp:rw,noexec,nosuid,nodev,size=256m --tmpfs /work:rw,exec,nosuid,nodev,size=1g \
       "$image_name" sh -eu -c '
         cp -R /src /work/project
-        if [ "$RELEASE_MODE" = beta ]; then sed -i "s/$PRODUCTION_UUID/$BETA_UUID/" /work/project/manifest.xml; fi
+        if [ "$RELEASE_MODE" = beta ]; then
+          sed -i "s/$PRODUCTION_UUID/$BETA_UUID/" /work/project/manifest.xml
+          ! grep -Fq "$PRODUCTION_UUID" /work/project/manifest.xml
+          grep -Fq "$BETA_UUID" /work/project/manifest.xml
+        else
+          grep -Fq "$PRODUCTION_UUID" /work/project/manifest.xml
+        fi
         sdk=$(find -L /root/.Garmin/ConnectIQ/Sdks -type f -path "*/bin/monkeyc" | sort -V | tail -n1)
         test -x "$sdk"
-        name="aerobic-guard-$RELEASE_VERSION.iq"
+        suffix=""
+        [ "$RELEASE_MODE" = beta ] && suffix="-beta"
+        name="aerobic-guard-$RELEASE_VERSION$suffix.iq"
         "$sdk" --version > "/out/$name.compiler.txt"
         "$sdk" -e -r -w --build-stats 0 -f /work/project/monkey.jungle -o "/out/$name" -y /run/garmin-key.der 2>&1 | tee -a "/out/$name.compiler.txt"
       '
-    local package="$output/aerobic-guard-$version.iq"
+    local package="$output/aerobic-guard-$version$suffix.iq"
     sha256sum "$package" > "$package.sha256"
     { printf 'commit=%s\n' "$(git -C "$project_root" rev-parse HEAD)"; printf 'image=%s\n' "$image_name"; printf 'mode=%s\n' "$mode"; } > "$package.build.txt"
     echo "Created: $package"

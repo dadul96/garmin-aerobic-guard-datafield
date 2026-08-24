@@ -373,19 +373,19 @@ Production and beta packaging use only the isolated trusted-host workflow:
 
 ```text
 ./tools/host-release prepare
-GARMIN_BETA_UUID=00000000-0000-0000-0000-000000000000 \
-    ./tools/host-release beta
+./tools/host-release beta
 ```
 
-Private-beta packaging requires an externally supplied UUID belonging to this
-application. Production export is blocked while `VERSION` is a prerelease:
+Private-beta packaging uses the wrapper's dedicated Aerobic Guard beta UUID.
+Production export is blocked while `VERSION` is a prerelease:
 
 ```text
 ./tools/host-release production
 ```
 
-Never reuse another application's production or beta UUID. Never run the
-host-release wrapper from Codex or expose the real developer key.
+The trusted wrapper contains distinct Aerobic Guard production and beta UUIDs.
+Never reuse another application's UUIDs, run the host-release wrapper from
+Codex, or expose the real developer key.
 
 ./tools/simulator is only for a human using the graphical VS Code Docker
 container. It rebuilds the app, starts the Connect IQ simulator, and loads the

@@ -40,6 +40,20 @@ for forbidden in ("FitContributor", "Communications", "ActivityControl"):
 if any((ROOT / "resources/contributions").glob("**/*")) or any((ROOT / "resources/settings").glob("**/*")):
     fail("FIT contribution or phone settings resources are forbidden")
 
+host_release = (ROOT / "tools/host-release").read_text()
+production_uuid = app.get("id") or ""
+uuid_values = dict(re.findall(r'^(production_uuid|beta_uuid)="([0-9a-f-]{36})"$', host_release, re.MULTILINE))
+if uuid_values.get("production_uuid") != production_uuid:
+    fail("host-release production UUID must match the manifest")
+if not uuid_values.get("beta_uuid") or uuid_values["beta_uuid"] == production_uuid:
+    fail("host-release beta UUID must be present and distinct")
+example_uuids = {
+    "a55c2d7d-f370-41c9-aa61-019346c4d878",
+    "6e6db69a-0ac1-4adf-88eb-c9885438e060",
+}
+if set(uuid_values.values()) & example_uuids:
+    fail("host-release UUID must not reuse the example app")
+
 version = (ROOT / "VERSION").read_text().strip()
 if version != "1.0.0-beta" or not re.fullmatch(r"\d+\.\d+\.\d+-[a-z0-9.-]+", version):
     fail("VERSION must be 1.0.0-beta and retain its prerelease suffix")
@@ -76,7 +90,7 @@ if "dadul96/garmin-aerobic-guard-datafield" not in public:
     fail("Aerobic Guard repository URL missing")
 scan_paths = [p for p in ROOT.rglob("*") if p.is_file()
               and ".git" not in p.parts and "example_app" not in p.parts
-              and "bin" not in p.parts]
+              and "bin" not in p.parts and p.name != "check_contract.py"]
 for path in scan_paths:
     text = path.read_text(errors="ignore")
     for stale in ("Power" + " Lost", "power" + "-lost",
