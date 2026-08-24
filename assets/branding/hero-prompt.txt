@@ -1,0 +1,14 @@
+Use case: ads-marketing
+Asset type: Garmin Connect IQ store hero background, final crop 2:1
+Primary request: calm endurance cyclist riding steadily on an open rural road, sustainable long-ride atmosphere rather than racing
+Scene/backdrop: quiet rolling countryside with subtle evergreen hills and a broad clean sky
+Subject: one unbranded cyclist in a relaxed endurance posture, positioned in the right third
+Style/medium: polished natural editorial photography, realistic anatomy and bicycle geometry
+Composition/framing: wide cinematic 2:1 composition, generous uncluttered negative space across the left half for typography to be added later outside the image
+Lighting/mood: clear natural morning daylight, calm, confident, restrained
+Color palette: natural greens, soft sky blue, warm road neutrals
+Constraints: background image only; no text; no logos; no commercial brands; no Garmin device; no visible bike-computer branding; no watermark; no spectators; no race numbers; no bottles emphasized; no unrelated objects; preserve ample copy-safe space on the left
+
+Generated with the built-in image-generation workflow on 2026-08-23.
+Source: assets/branding/hero-background-source.png
+Final composition: assets/store/hero-1440x720.png
