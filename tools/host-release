@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+command_name="${1:-}"
+project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+version="$(tr -d '\r\n' < "$project_root/VERSION")"
+ciq_host="${CIQ_HOST:-$HOME/.local/share/garmin-connectiq}"
+image_name="${CIQ_RELEASE_IMAGE:-garmin-ciq-dev:ubuntu22.04}"
+state="$ciq_host/state"
+stage="$ciq_host/aerobic-guard/staging"
+output="$ciq_host/aerobic-guard/output"
+key="${GARMIN_DEVELOPER_KEY:-$ciq_host/secrets/garmin_developer_key.der}"
+production_uuid="29798159-d77e-4692-9e58-8808897fbeb1"
+
+fail() { echo "Host release error: $*" >&2; exit 1; }
+validate_root() {
+    [[ "$ciq_host" == /* && "$ciq_host" != / && "$ciq_host" != "$HOME" ]] || fail "CIQ_HOST is unsafe"
+}
+prepare() {
+    validate_root
+    [[ -z "$(git -C "$project_root" status --porcelain --untracked-files=normal)" ]] || fail "repository must be clean"
+    mapfile -t links < <(find "$project_root/source" "$project_root/resources" "$project_root/manifest.xml" "$project_root/monkey.jungle" -type l -print)
+    ((${#links[@]} == 0)) || fail "compiler inputs contain symlinks"
+    rm -rf -- "$stage"
+    mkdir -p -m 700 "$stage/source" "$output"
+    cp -R -- "$project_root/source/." "$stage/source/"
+    for resource_dir in "$project_root"/resources*; do cp -R -- "$resource_dir" "$stage/"; done
+    cp -- "$project_root/manifest.xml" "$project_root/monkey.jungle" "$stage/"
+    chmod -R go-rwx "$stage" "$output"
+    echo "Prepared Aerobic Guard release stage: $stage"
+}
+export_package() {
+    local mode="$1" beta_uuid="${GARMIN_BETA_UUID:-}" suffix=""
+    validate_root
+    [[ -d "$stage/source" ]] || fail "run prepare first"
+    [[ -f "$key" ]] || fail "external developer key is missing"
+    [[ "$mode" == beta ]] || [[ "$version" != *-* ]] || fail "production is blocked for prerelease VERSION"
+    if [[ "$mode" == beta ]]; then
+        [[ "$beta_uuid" =~ ^[0-9a-fA-F-]{36}$ && "$beta_uuid" != "$production_uuid" ]] || fail "supply a distinct GARMIN_BETA_UUID"
+        suffix="-beta"
+    fi
+    docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges \
+      -e RELEASE_MODE="$mode" -e RELEASE_VERSION="$version" -e PRODUCTION_UUID="$production_uuid" -e BETA_UUID="$beta_uuid" \
+      --mount type=bind,source="$stage",target=/src,readonly \
+      --mount type=bind,source="$state",target=/root/.Garmin/ConnectIQ,readonly \
+      --mount type=bind,source="$key",target=/run/garmin-key.der,readonly \
+      --mount type=bind,source="$output",target=/out \
+      --tmpfs /tmp:rw,noexec,nosuid,nodev,size=256m --tmpfs /work:rw,exec,nosuid,nodev,size=1g \
+      "$image_name" sh -eu -c '
+        cp -R /src /work/project
+        if [ "$RELEASE_MODE" = beta ]; then sed -i "s/$PRODUCTION_UUID/$BETA_UUID/" /work/project/manifest.xml; fi
+        sdk=$(find -L /root/.Garmin/ConnectIQ/Sdks -type f -path "*/bin/monkeyc" | sort -V | tail -n1)
+        test -x "$sdk"
+        name="aerobic-guard-$RELEASE_VERSION.iq"
+        "$sdk" --version > "/out/$name.compiler.txt"
+        "$sdk" -e -r -w --build-stats 0 -f /work/project/monkey.jungle -o "/out/$name" -y /run/garmin-key.der 2>&1 | tee -a "/out/$name.compiler.txt"
+      '
+    local package="$output/aerobic-guard-$version.iq"
+    sha256sum "$package" > "$package.sha256"
+    { printf 'commit=%s\n' "$(git -C "$project_root" rev-parse HEAD)"; printf 'image=%s\n' "$image_name"; printf 'mode=%s\n' "$mode"; } > "$package.build.txt"
+    echo "Created: $package"
+}
+case "$command_name" in
+  prepare) prepare ;; beta) export_package beta ;; production) export_package production ;;
+  clean) validate_root; rm -rf -- "$stage"; echo "Removed: $stage" ;;
+  *) echo "Usage: $0 {prepare|beta|production|clean}" >&2; exit 2 ;;
+esac

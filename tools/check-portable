@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -euo pipefail
+repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$repo_dir"
+cache="$(mktemp -d)"
+trap 'rm -rf -- "$cache"' EXIT
+PYTHONPYCACHEPREFIX="$cache" python3 -m py_compile tools/*.py
+PYTHONDONTWRITEBYTECODE=1 python3 tools/test_logic.py
+PYTHONDONTWRITEBYTECODE=1 ./tools/check_contract.py
+bash -n tools/check tools/check-portable tools/garmin tools/host-release tools/simulator \
+  tools/export-assets tools/test_garmin_state.sh tools/testdata/fake_monkeyc.sh codex-sbx-launcher.sh
+./tools/test_garmin_state.sh
+python3 - <<'PY'
+import json, pathlib, xml.etree.ElementTree as ET
+for directory in pathlib.Path(".").glob("resources*"):
+    for path in directory.rglob("*.xml"): ET.parse(path)
+    for path in directory.rglob("*.svg"): ET.parse(path)
+ET.parse("manifest.xml")
+ET.parse("resources/drawables/launcher_icon.svg")
+json.loads(pathlib.Path(".devcontainer/devcontainer.json").read_text())
+PY
+git diff --check

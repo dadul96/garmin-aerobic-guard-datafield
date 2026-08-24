@@ -215,6 +215,7 @@ build() {
         test_flag=(-t)
     fi
 
+    local compiler_log="$TMP_DIRECTORY/compiler.log"
     run_monkeyc \
         "${test_flag[@]}" \
         -d "$GARMIN_DEVICE" \
@@ -222,7 +223,12 @@ build() {
         --build-stats 0 \
         -f "$PROJECT_ROOT/monkey.jungle" \
         -o "$output" \
-        -y "$TMP_DIRECTORY/simulator-key.der"
+        -y "$TMP_DIRECTORY/simulator-key.der" 2>&1 | tee "$compiler_log"
+
+    if grep -E '(^|[[:space:]])(WARNING|ERROR):' "$compiler_log"; then
+        echo "Compiler warnings and errors are release-gate failures." >&2
+        exit 1
+    fi
 
     test -f "$output"
     echo "Created: $output"
@@ -244,71 +250,9 @@ matrix() {
         GARMIN_DEVICE="$device" "$0" build
         cp "$PROJECT_ROOT/bin/app.prg" "$PROJECT_ROOT/bin/app-$device.prg"
     done
-}
-
-package_app() {
-    local mode="$1"
-    local version="${2:-}"
-    local key="${GARMIN_DEVELOPER_KEY:-}"
-    local package_manifest="$PROJECT_ROOT/manifest.xml"
-    local package_jungle="$PROJECT_ROOT/monkey.jungle"
-    local package_name="${GARMIN_PACKAGE_NAME:-$(basename "$PROJECT_ROOT")}"
-    local temporary=""
-    [[ "$package_name" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || {
-        echo "GARMIN_PACKAGE_NAME must contain only letters, numbers, dots, underscores, or hyphens." >&2
-        exit 2
-    }
-    [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
-        echo "Version must use MAJOR.MINOR.PATCH." >&2; exit 2;
-    }
-    [[ -n "$key" && -f "$key" ]] || {
-        echo "Set GARMIN_DEVELOPER_KEY to an existing external key file." >&2
-        exit 1
-    }
-    doctor
-    mkdir -p "$PROJECT_ROOT/dist"
-    if [[ "$mode" == beta ]]; then
-        local beta_uuid="${GARMIN_BETA_UUID:-}"
-        local production_uuid
-        [[ "$beta_uuid" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]] || {
-            echo "Set GARMIN_BETA_UUID to the new app's beta UUID." >&2
-            exit 1
-        }
-        production_uuid="$(python3 - "$PROJECT_ROOT/manifest.xml" <<'PY'
-import sys
-import xml.etree.ElementTree as ET
-
-root = ET.parse(sys.argv[1]).getroot()
-namespace = {"iq": "http://www.garmin.com/xml/connectiq"}
-application = root.find("iq:application", namespace)
-if application is None or not application.get("id"):
-    raise SystemExit("Could not read the application UUID from manifest.xml")
-print(application.get("id"))
-PY
-)"
-        [[ "$beta_uuid" != "$production_uuid" ]] || {
-            echo "GARMIN_BETA_UUID must differ from the production UUID." >&2
-            exit 1
-        }
-        temporary="$(mktemp -d)"
-        CLEANUP_PATHS+=("$temporary")
-        cp "$PROJECT_ROOT/manifest.xml" "$temporary/manifest.xml"
-        sed -i "s/$production_uuid/$beta_uuid/" \
-            "$temporary/manifest.xml"
-        package_manifest="$temporary/manifest.xml"
-        cp "$PROJECT_ROOT/monkey.jungle" "$temporary/monkey.jungle"
-        sed -i "s|^project.manifest.*|project.manifest = $package_manifest|" \
-            "$temporary/monkey.jungle"
-        printf '%s\n' \
-            "base.sourcePath = $PROJECT_ROOT/source" \
-            "base.resourcePath = $PROJECT_ROOT/resources" \
-            >> "$temporary/monkey.jungle"
-        package_jungle="$temporary/monkey.jungle"
-    fi
-    run_monkeyc -e -r -w --build-stats 0 \
-        -f "$package_jungle" \
-        -o "$PROJECT_ROOT/dist/${package_name}-${version}${mode:+-$mode}.iq" -y "$key"
-    echo "Created dist/${package_name}-${version}${mode:+-$mode}.iq"
+    # Keep the conventional artifact aligned with the default development
+    # target instead of silently leaving the final matrix device in app.prg.
+    cp "$PROJECT_ROOT/bin/app-edge840.prg" "$PROJECT_ROOT/bin/app.prg"
 }
 
 clean() {
@@ -329,17 +273,11 @@ case "$COMMAND" in
     matrix)
         matrix
         ;;
-    package)
-        package_app "" "${2:-}"
-        ;;
-    package-beta)
-        package_app beta "${2:-}"
-        ;;
     clean)
         clean
         ;;
     *)
-        echo "Usage: $0 {doctor|build|test|matrix|package VERSION|package-beta VERSION|clean}" >&2
+        echo "Usage: $0 {doctor|build|test|matrix|clean}" >&2
         exit 2
         ;;
 esac

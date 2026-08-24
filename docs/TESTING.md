@@ -1,5 +1,21 @@
 # Testing
 
+The portable gate validates logic, scripts, XML/JSON, release metadata, exact
+six-product capabilities, assets, state isolation, and whitespace. The normal
+gate additionally compiles warning-free Edge 840 app and test programs. The
+release matrix must leave `bin/app-edge540.prg`, `app-edge550.prg`,
+`app-edge840.prg`, `app-edge850.prg`, `app-edge1040.prg`, and
+`app-edge1050.prg`.
+
+`./tools/simulator --tests --840` builds and loads the test program in the
+human graphical environment. Device selectors cover all six products. Passing
+command-line compilation is not simulator, physical, beta-upload, or store
+review evidence; those remain unchecked in `RELEASE_PROGRESS.md`.
+
+The portable regression suite also verifies that custom-rendered and mutable
+menu text resolves resource identifiers before use, including unavailable
+values rendered before the first activity sample.
+
 Aerobic Guard has two complementary test layers:
 
 1. Repository-side Python tests execute without the graphical simulator.
@@ -76,7 +92,7 @@ reported as an error.
 To run one test, append its function name:
 
 ```bash
-monkeydo bin/tests.prg edge840 -t testHeartRateVeto
+monkeydo bin/tests.prg edge840 -t testPowerMovingAverage
 ```
 
 The current Monkey C tests cover:

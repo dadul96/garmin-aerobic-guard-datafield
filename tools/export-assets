@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$repo_dir"
+command -v convert >/dev/null 2>&1 || { echo "ImageMagick convert is required." >&2; exit 1; }
+mkdir -p assets/store assets/device resources/drawables
+
+svg=resources/drawables/launcher_icon.svg
+convert -background none "$svg" -resize 500x500 -colorspace sRGB PNG24:assets/store/icon-500.png
+convert -background none "$svg" -resize 128x128 -colorspace sRGB PNG24:assets/store/icon-128.png
+convert -background none "$svg" -resize 35x35 -colorspace sRGB PNG24:assets/device/launcher-35.png
+convert -background none "$svg" -resize 40x40 -colorspace sRGB PNG24:assets/device/launcher-40.png
+convert -background none "$svg" -resize 56x56 -colorspace sRGB PNG24:assets/device/launcher-56.png
+convert -background none "$svg" -resize 68x68 -colorspace sRGB PNG24:assets/device/launcher-68.png
+
+source=assets/branding/hero-background-source.png
+test -f "$source" || { echo "Missing generated hero source: $source" >&2; exit 1; }
+convert "$source" -resize '1440x720^' -gravity center -extent 1440x720 \
+  -colorspace sRGB -fill '#174f3b' -stroke white -strokewidth 2 \
+  -font DejaVu-Sans-Bold -pointsize 72 -gravity northwest \
+  -annotate +90+235 'AEROBIC GUARD' -stroke none -fill '#174f3b' \
+  -font DejaVu-Sans -pointsize 34 -annotate +94+315 'STAY STEADY. RIDE LONGER.' \
+  PNG24:assets/store/hero-1440x720.png

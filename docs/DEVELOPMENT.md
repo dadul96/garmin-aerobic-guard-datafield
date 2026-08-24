@@ -1,5 +1,15 @@
 # Development workflow
 
+Supported configuration entry points are the on-device menus and proportional
+keypad. Edge 540/550 use wrapping Up/Down focus and Enter/Start activation;
+840/850/1040/1050 use coordinate taps. Immediate top-view replacement keeps
+edits visible while preserving the settings stack.
+
+Use `./tools/check-portable` without an SDK, `./tools/check` for the Edge 840
+app and test compile, and `./tools/garmin matrix` for all six release products.
+Direct key-based packaging was removed from `tools/garmin`; only the trusted
+host workflow in `HOST_RELEASE.md` may sign exports.
+
 ## Environments
 
 Codex performs command-line implementation and validation in the sandbox. A
@@ -81,6 +91,11 @@ number and color-fill edge together.
 The keypad uses a `WatchUi.BehaviorDelegate`. Garmin defines it as an
 `InputDelegate` subclass, so it receives raw `onTap()` callbacks while also
 providing device-independent Back handling.
+
+The production keypad is deliberately application-specific. The
+[`reusable_numeric_keypad`](../reusable_numeric_keypad/README.md) directory is
+a separate, self-contained reference export for other Connect IQ projects; it
+is not on Aerobic Guard's production source path.
 
 Do not add `onSelect()` to the keypad delegate. Garmin may dispatch a touch as
 Select, which would activate the focused control instead of the tapped cell.

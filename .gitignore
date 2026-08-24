@@ -23,3 +23,4 @@ __pycache__/
 
 # Local ride recordings and notes
 fit-files/
+example_app/

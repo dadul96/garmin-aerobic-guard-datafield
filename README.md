@@ -1,88 +1,89 @@
 # Aerobic Guard
 
-Aerobic Guard is a calm, full-screen Garmin Connect IQ data field for long
-aerobic and endurance cycling rides. It keeps the information needed to stay
-inside a sustainable envelope on one glanceable page without trying to replace
-Garmin's structured-workout experience.
+![Aerobic Guard store hero](assets/store/hero-1440x720.png)
 
-The project currently targets the **Garmin Edge 840** and requires **Connect IQ
-API 6.0.0 or newer**. It is source-only and pre-release: there is no published
-Connect IQ Store installation yet.
+Aerobic Guard is a calm, opinionated full-screen Garmin Connect IQ cycling data
+field for long aerobic rides. It keeps power, a heart-rate ceiling, advisory
+cadence, cumulative carbs by now, speed, and elapsed activity time on one page.
+It does not replace structured workouts or write custom FIT data.
 
-## What it shows
+![Aerobic Guard shield and range logo](assets/store/icon-128.png)
 
-- Raw current power with a configurable target range
-- Current heart rate with a ceiling and Garmin cycling-zone drawing range
-- Cadence with an advisory target range
-- Cumulative carbohydrate target at completed ten-minute blocks
-- Speed and elapsed activity time
+## Install and place
 
-Aerobic Guard handles unavailable sensor values explicitly and never invents
-measurements or physiological targets. Live bar position, target posts, and
-color show each enabled metric's current relationship to its configured limits.
+Aerobic Guard supports Edge 540 / 540 Solar, Edge 550, Edge 840 / 840 Solar,
+Edge 850, Edge 1040 / 1040 Solar, and Edge 1050, with Connect IQ 6.0.0 or
+newer.
 
-## Initial settings
+Install Aerobic Guard through the Connect IQ Store, then add it as the sole
+field on a full-screen cycling data page. A smaller placement displays `FULL
+SCREEN REQUIRED`.
 
-On the first data-field start, the app can initialize power and heart-rate
-guidance from Garmin's configured cycling zones. If power-zone thresholds are
-unavailable and cycling FTP is positive, power can use Garmin's standard
-56–75% FTP Zone 2 range. This import is attempted only once and never
-overwrites non-zero rider settings.
+## Read the display
 
-Cadence starts at 80–95 rpm and the carbohydrate target starts at 60 g/h.
-These one-time product defaults remain editable. Settings are managed on the
-Edge through the data field's own settings menus.
+Power and cadence bars span 0.8× the configured lower bound through 1.2× the
+upper bound. Posts show the target; the fill edge is current power using the
+shown 1–30 second average, or current cadence. HR uses Garmin's cycling-zone
+minimum and maximum and makes the configured ceiling the dominant post. Numeric
+values remain real while visual positions clamp. `--` means unavailable.
+Colors reinforce the range state, while posts, fill edges, and off-scale arrows
+keep the same information readable without color. The bars provide range
+context; they do not turn Aerobic Guard into a workout player.
 
-## Privacy and scope
+The footer shows cumulative carbs by now, speed in Garmin's distance units,
+and elapsed activity time. Carbs advance only after completed ten-minute blocks.
 
-The app works entirely on the device. It has no networking, accounts, cloud
-synchronization, navigation, or location handling. It does not use
-`Toybox.FitContributor` and does not write custom FIT developer fields.
+## Defaults and settings
 
-The repository includes an optional FIT inspection utility for private local
-testing. Ride files may contain location and personal sensor data, belong only
-under the ignored `fit-files/` directory, and must never be committed or
-published.
+The one-time first start may import cycling Power Zone 2 and maximum HR Zone 2.
+Power may fall back to 56–75% of positive cycling FTP. Imports never overwrite
+non-zero rider values or recalculate later. Cadence starts at 80–95 rpm and
+carbs at 60 g/h. On-device settings cover only enablement, power bounds and
+average, HR ceiling, cadence bounds, and carbohydrate rate.
 
-## Build and test
+## Screenshots
 
-Garmin SDKs and device definitions must already be available in a supported
-local development environment. Repository wrappers create temporary
-simulator-only keys; a real Garmin developer key is neither needed nor accepted
-for normal builds and tests.
+<table>
+  <tr>
+    <td align="center"><img src="assets/screenshots/01-steady-dashboard.png" alt="Aerobic Guard dashboard during a steady aerobic ride"><br>Steady dashboard</td>
+    <td align="center"><img src="assets/screenshots/02-guidance-boundaries.png" alt="Aerobic Guard dashboard showing above-range power and cadence guidance"><br>Guidance boundaries</td>
+    <td align="center"><img src="assets/screenshots/03-reduced-guidance.png" alt="Aerobic Guard dashboard with cadence guidance disabled"><br>Reduced guidance</td>
+  </tr>
+  <tr>
+    <td align="center"><img src="assets/screenshots/04-all-settings.png" alt="Aerobic Guard settings overview"><br>Settings</td>
+    <td align="center"><img src="assets/screenshots/05-settings-power.png" alt="Aerobic Guard power guidance settings"><br>Power settings</td>
+    <td></td>
+  </tr>
+</table>
+
+The matching store-listing descriptions are in the
+[screenshot checklist](store/english.md#screenshot-checklist).
+
+## Privacy
+
+Aerobic Guard has no networking, accounts, advertising, analytics, location
+handling, or external collection. Its only permission is User Profile for the
+documented cycling zones/FTP behavior. Preferences remain on-device. See the
+[privacy policy](PRIVACY.md).
+
+## Development
 
 ```bash
+./tools/check-portable
 ./tools/garmin doctor
-./tools/garmin build
 ./tools/check
+./tools/garmin matrix
 ```
 
-A successful production build creates the ignored artifact `bin/app.prg`.
-`./tools/check` runs repository-side tests, validates scripts and XML, builds
-the Edge 840 app, and compiles the Monkey C Run No Evil test program.
+The graphical simulator is a human-only step. Start with the [documentation
+index](docs/README.md), then see [development](docs/DEVELOPMENT.md),
+[testing](docs/TESTING.md), [releasing](docs/RELEASING.md), and the
+[changelog](CHANGELOG.md).
 
-Graphical simulator tests and physical-device checks remain human steps. A
-successful command-line build does not establish sunlight readability, live
-sensor integration, or on-road behavior. See
-[`docs/TESTING.md`](docs/TESTING.md) for the current validation record and
-manual test instructions.
+This project was developed with AI-assisted implementation and review. Product
+requirements, release evidence, physical validation, signing credentials, and
+publishing decisions remain human responsibilities. Generated artwork is
+identified with its prompt and source under `assets/branding/`.
 
-## Documentation
-
-- [`AGENTS.md`](AGENTS.md) — product and engineering source of truth
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — modules and runtime flow
-- [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) — supported development workflow
-- [`docs/TESTING.md`](docs/TESTING.md) — automated and human validation
-- [`docs/DECISIONS.md`](docs/DECISIONS.md) — durable design decisions
-- [`reusable_numeric_keypad/`](reusable_numeric_keypad/) — reusable keypad reference
-
-## Contributing
-
-Keep changes within the Edge 840 endurance-data-field scope described in
-`AGENTS.md`. Update tests and durable documentation with behavior changes, use
-the repository wrappers rather than invoking Garmin tools directly, and run
-`./tools/check` before submitting a change.
-
-## License
-
-Aerobic Guard is available under the [MIT License](LICENSE).
+Licensed under the [MIT License](LICENSE). Support and source:
+https://github.com/dadul96/garmin-aerobic-guard-datafield
