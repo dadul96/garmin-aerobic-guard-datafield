@@ -2,10 +2,10 @@
 
 ![Aerobic Guard store hero](assets/store/hero-1440x720.png)
 
-Aerobic Guard is a calm, opinionated full-screen Garmin Connect IQ cycling data
-field for long aerobic rides. It keeps power, a heart-rate ceiling, advisory
-cadence, cumulative carbs by now, speed, and elapsed activity time on one page.
-It does not replace structured workouts or write custom FIT data.
+Aerobic Guard is a full-screen Garmin cycling data field that helps you stay
+within your power, heart-rate, and cadence targets during long endurance rides.
+It also keeps cumulative carbs by now, speed, and elapsed activity time on the
+same page. It does not replace structured workouts or write custom FIT data.
 
 ![Aerobic Guard shield and range logo](assets/store/icon-128.png)
 
