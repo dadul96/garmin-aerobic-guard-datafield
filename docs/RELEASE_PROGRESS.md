@@ -8,10 +8,10 @@
 
 ## Human simulator
 
-- [ ] Run Monkey C tests on Edge 840
-- [ ] Exercise all six products and four resolution families
-- [ ] Verify touch settings on 840, 850, 1040, and 1050
-- [ ] Verify button settings on 540 and 550
+- [x] Run Monkey C tests on Edge 840
+- [x] Exercise all six products and four resolution families
+- [x] Verify touch settings on 840, 850, 1040, and 1050
+- [x] Verify button settings on 540 and 550
 - [x] Capture the store screenshot checklist (2026-08-24)
 
 ## Physical and store
