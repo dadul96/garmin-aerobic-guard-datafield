@@ -7,6 +7,8 @@ within your power, heart-rate, and cadence targets during long endurance rides.
 It also keeps cumulative carbs by now, speed, and elapsed activity time on the
 same page. It does not replace structured workouts or write custom FIT data.
 
+[Install Aerobic Guard from the Connect IQ Store](https://apps.garmin.com/de-DE/apps/773419ac-8bcf-4900-9bdb-47f6affb4f6b)
+
 ![Aerobic Guard shield and range logo](assets/store/icon-128.png)
 
 ## Quick start
@@ -67,7 +69,7 @@ average, HR ceiling, cadence bounds, and carbohydrate rate.
 </table>
 
 The matching store-listing descriptions are in the
-[screenshot checklist](store/english.md#screenshot-checklist).
+[screenshot checklist](store/english.md#screenshots).
 
 ## Privacy
 

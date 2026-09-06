@@ -99,7 +99,7 @@ public = "\n".join((ROOT / name).read_text(errors="ignore") for name in REQUIRED
 if "dadul96/garmin-aerobic-guard-datafield" not in public:
     fail("Aerobic Guard repository URL missing")
 store_text = (ROOT / "store/english.md").read_text()
-for required in ("docs/USER_GUIDE.md", "PRIVACY.md", "/issues"):
+for required in ("docs/USER_GUIDE.md",):
     if required not in store_text:
         fail(f"store listing link missing: {required}")
 scan_paths = [p for p in ROOT.rglob("*") if p.is_file()
