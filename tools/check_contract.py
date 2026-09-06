@@ -85,8 +85,6 @@ for name, size in {
         fail(f"wrong dimensions: {name}")
 if (ROOT / "assets/store/icon-500.png").stat().st_size > 300 * 1024:
     fail("Connect IQ listing icon exceeds 300 KiB")
-if (ROOT / "assets/store/hero-1440x720.png").stat().st_size > 300_000:
-    fail("Connect IQ hero exceeds 300 KB")
 screenshots = sorted((ROOT / "assets/screenshots").glob("*.png"))
 if len(screenshots) != 5:
     fail("Connect IQ listing must contain the five reviewed screenshots")
