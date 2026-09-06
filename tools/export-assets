@@ -21,4 +21,4 @@ convert "$source" -resize '1440x720^' -gravity center -extent 1440x720 \
   -font DejaVu-Sans-Bold -pointsize 72 -gravity northwest \
   -annotate +90+235 'AEROBIC GUARD' -stroke none -fill '#174f3b' \
   -font DejaVu-Sans -pointsize 34 -annotate +94+315 'STAY STEADY. RIDE LONGER.' \
-  PNG24:assets/store/hero-1440x720.png
+  -dither FloydSteinberg -colors 128 PNG8:assets/store/hero-1440x720.png

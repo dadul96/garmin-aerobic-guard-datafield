@@ -9,8 +9,8 @@ release matrix must leave `bin/app-edge540.prg`, `app-edge550.prg`,
 
 `./tools/simulator --tests --840` builds and loads the test program in the
 human graphical environment. Device selectors cover all six products. Passing
-command-line compilation is not simulator, physical, beta-upload, or store
-review evidence; those remain unchecked in `RELEASE_PROGRESS.md`.
+command-line compilation is not simulator, physical-device, upload, or
+store-review evidence. `RELEASE_PROGRESS.md` records those separately.
 
 The portable regression suite also verifies that custom-rendered and mutable
 menu text resolves resource identifiers before use, including unavailable

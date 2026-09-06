@@ -7,6 +7,8 @@ the product contract in [`AGENTS.md`](../AGENTS.md).
 
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) describes the source modules, runtime
   data flow, and important implementation boundaries.
+- [`USER_GUIDE.md`](USER_GUIDE.md) is the public installation, configuration,
+  display, and troubleshooting manual.
 - [`DEVELOPMENT.md`](DEVELOPMENT.md) explains the supported build and
   validation workflow in the repository and graphical development containers.
 - [`TESTING.md`](TESTING.md) explains the automated checks, Monkey C unit tests,

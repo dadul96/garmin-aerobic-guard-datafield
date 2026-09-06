@@ -23,10 +23,12 @@ and the pure behavior can be tested.
 field's `compute(info)` once per second and calls `onUpdate(dc)` when the field
 must be drawn.
 
-One-time setting initialization runs when Garmin requests the initial data-field
-view, before `SettingsModel` is constructed. It does not run while Garmin is
-constructing the separate on-device settings view. Runtime capability checks
-and defensive property reads keep a profile API or migration failure contained.
+One-time cadence and carbohydrate defaults run when Garmin requests the initial
+data-field view, before `SettingsModel` is constructed. The profile-dependent
+power/HR import runs on the field's first `compute()` callback and then reloads
+the settings. Neither path runs while Garmin is constructing the separate
+on-device settings view. Runtime capability checks and defensive property reads
+keep a profile API or migration failure contained.
 
 `AerobicGuardField` performs these tasks:
 

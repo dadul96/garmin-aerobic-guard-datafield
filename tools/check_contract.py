@@ -13,7 +13,8 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 NS = {"iq": "http://www.garmin.com/xml/connectiq"}
 PRODUCTS = {"edge540", "edge550", "edge840", "edge850", "edge1040", "edge1050"}
 REQUIRED_DOCS = {
-    "README.md", "PRIVACY.md", "CHANGELOG.md", "VERSION", "store/english.md",
+    "README.md", "LICENSE", "PRIVACY.md", "CHANGELOG.md", "VERSION",
+    "store/english.md", "docs/USER_GUIDE.md",
     "docs/RELEASING.md", "docs/HOST_RELEASE.md", "docs/RELEASE_PROGRESS.md",
 }
 
@@ -55,19 +56,19 @@ if set(uuid_values.values()) & example_uuids:
     fail("host-release UUID must not reuse the example app")
 
 version = (ROOT / "VERSION").read_text().strip()
-if version != "1.0.0-beta" or not re.fullmatch(r"\d+\.\d+\.\d+-[a-z0-9.-]+", version):
-    fail("VERSION must be 1.0.0-beta and retain its prerelease suffix")
+if not re.fullmatch(r"\d+\.\d+\.\d+", version):
+    fail("public-release VERSION must be stable major.minor.patch")
 if f"## {version}" not in (ROOT / "CHANGELOG.md").read_text():
-    fail("CHANGELOG first release heading must match VERSION")
+    fail("CHANGELOG release heading must match VERSION")
 for name in REQUIRED_DOCS:
     if not (ROOT / name).is_file():
         fail(f"required document missing: {name}")
 
-def png_size(path: pathlib.Path) -> tuple[int, int]:
+def png_size(path: pathlib.Path, require_srgb: bool = True) -> tuple[int, int]:
     data = path.read_bytes()
     if not data.startswith(b"\x89PNG\r\n\x1a\n"):
         fail(f"not PNG: {path.relative_to(ROOT)}")
-    if b"sRGB" not in data:
+    if require_srgb and b"sRGB" not in data:
         fail(f"missing sRGB chunk: {path.relative_to(ROOT)}")
     return struct.unpack(">II", data[16:24])
 
@@ -82,12 +83,27 @@ for name, size in {
 }.items():
     if png_size(ROOT / name) != size:
         fail(f"wrong dimensions: {name}")
+if (ROOT / "assets/store/icon-500.png").stat().st_size > 300 * 1024:
+    fail("Connect IQ listing icon exceeds 300 KiB")
+if (ROOT / "assets/store/hero-1440x720.png").stat().st_size > 300_000:
+    fail("Connect IQ hero exceeds 300 KB")
+screenshots = sorted((ROOT / "assets/screenshots").glob("*.png"))
+if len(screenshots) != 5:
+    fail("Connect IQ listing must contain the five reviewed screenshots")
+for path in screenshots:
+    png_size(path, require_srgb=False)
+    if path.stat().st_size > 150 * 1024:
+        fail(f"Connect IQ screenshot exceeds 150 KiB: {path.name}")
 ET.parse(ROOT / "resources/drawables/launcher_icon.svg")
 json.loads((ROOT / ".devcontainer/devcontainer.json").read_text())
 
 public = "\n".join((ROOT / name).read_text(errors="ignore") for name in REQUIRED_DOCS)
 if "dadul96/garmin-aerobic-guard-datafield" not in public:
     fail("Aerobic Guard repository URL missing")
+store_text = (ROOT / "store/english.md").read_text()
+for required in ("docs/USER_GUIDE.md", "PRIVACY.md", "/issues"):
+    if required not in store_text:
+        fail(f"store listing link missing: {required}")
 scan_paths = [p for p in ROOT.rglob("*") if p.is_file()
               and ".git" not in p.parts and "example_app" not in p.parts
               and "bin" not in p.parts and p.name != "check_contract.py"]

@@ -512,3 +512,23 @@ could abort an update immediately after the screen was cleared.
 first activity sample, labels contain their English text, and the hot path does
 not repeatedly load static resources. Repository tests reject direct resource
 identifier use at these UI boundaries.
+
+## 2026-09-06 — Publish 1.0.0 with on-device-first onboarding
+
+**Decision:** Promote the validated private beta to stable version `1.0.0` for
+the first public source and Connect IQ Store release. Keep configuration
+on-device and add a durable user guide covering one-field placement, first-start
+behavior, display semantics, and troubleshooting. Publish the source repository
+before Store submission so its privacy, support, and manual links are publicly
+reachable.
+
+**Rationale:** Private-beta installation and multiple physical rides established
+the application behavior, but a new user also needs to know that this is a data
+field rather than an app, that it requires a one-field activity page, and that
+settings are not exposed in the phone app. Garmin reviews the production UUID
+separately from the alternate beta UUID.
+
+**Consequences:** Release validation now requires a stable semantic version,
+the user guide, complete public listing links, reviewed image-size limits, and
+the production publication checklist. The production package remains available
+only through the trusted-host workflow and the Connect IQ Store.

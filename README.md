@@ -9,23 +9,33 @@ same page. It does not replace structured workouts or write custom FIT data.
 
 ![Aerobic Guard shield and range logo](assets/store/icon-128.png)
 
-## Install and place
+## Quick start
 
 Aerobic Guard supports Edge 540 / 540 Solar, Edge 550, Edge 840 / 840 Solar,
 Edge 850, Edge 1040 / 1040 Solar, and Edge 1050, with Connect IQ 6.0.0 or
 newer.
 
-Install Aerobic Guard through the Connect IQ Store, then add it as the sole
-field on a full-screen cycling data page. A smaller placement displays `FULL
-SCREEN REQUIRED`.
+1. Install Aerobic Guard through the Connect IQ Store and sync your Edge.
+2. In the cycling activity profile you use, add a data screen with a one-field
+   layout and select Aerobic Guard as that field.
+3. Open that data page once, then open Aerobic Guard's settings on the Edge,
+   review the imported/default targets, and adjust them for your ride.
+4. Start the activity normally. Aerobic Guard displays live data but does not
+   start, pause, or save the activity for you.
+
+A smaller placement displays `FULL SCREEN REQUIRED`. Configuration is
+on-device; Aerobic Guard intentionally has no phone or Garmin Express settings
+page. See the [user guide](docs/USER_GUIDE.md) for setup, display meaning,
+settings, and troubleshooting.
 
 ## Read the display
 
 Power and cadence bars span 0.8× the configured lower bound through 1.2× the
 upper bound. Posts show the target; the fill edge is current power using the
-shown 1–30 second average, or current cadence. HR uses Garmin's cycling-zone
-minimum and maximum and makes the configured ceiling the dominant post. Numeric
-values remain real while visual positions clamp. `--` means unavailable.
+shown 1–30 second average, or current cadence. The small outlined triangle is
+Garmin's activity average. HR uses Garmin's cycling-zone minimum and maximum
+and makes the configured ceiling the dominant post. Numeric values remain real
+while visual positions clamp. `--` means unavailable.
 Colors reinforce the range state, while posts, fill edges, and off-scale arrows
 keep the same information readable without color. The bars provide range
 context; they do not turn Aerobic Guard into a workout player.
