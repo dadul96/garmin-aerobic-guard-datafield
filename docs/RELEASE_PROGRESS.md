@@ -27,15 +27,15 @@
 
 ## Production publication
 
-- [ ] Back up the original developer key securely outside the signing host
-- [ ] Confirm public contact email, free/non-monetized status, and intended
+- [x] Back up the original developer key securely outside the signing host
+- [x] Confirm public contact email, free/non-monetized status, and intended
   regional availability in the Garmin developer dashboard
-- [ ] Make the GitHub repository public and verify all links while signed out
-- [ ] Create and checksum the production `.iq` on the trusted signing host
-- [ ] Upload with the production UUID and **Beta App unchecked**
-- [ ] Verify the production Store preview, compatibility, assets, and links
-- [ ] Garmin production review completed
-- [ ] Install the public listing as a fresh user and complete a smoke ride
-- [ ] Publish the `v1.0.0` Git tag and GitHub release
+- [x] Make the GitHub repository public and verify all links while signed out
+- [x] Create and checksum the production `.iq` on the trusted signing host
+- [x] Upload with the production UUID and **Beta App unchecked**
+- [x] Verify the production Store preview, compatibility, assets, and links
+- [x] Garmin production review completed
+- [x] Install the public listing as a fresh user and complete a smoke ride
+- [x] Publish the `v1.0.0` Git tag and GitHub release
 
 Only actual Aerobic Guard evidence may check an item.

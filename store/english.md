@@ -2,34 +2,18 @@
 
 Stay steady. Ride longer.
 
-Aerobic Guard is a full-screen Garmin cycling data field that helps you stay
-within your power, heart-rate, and cadence targets during long endurance rides.
-It also keeps cumulative carbs by now, speed, and elapsed activity time on the
-same page. It is not a workout player, medical device, fueling alert system, or
-FIT recorder.
+Aerobic Guard is a full-screen Garmin cycling data field that helps you stay within your power, heart-rate, and cadence targets during long endurance rides. It also keeps cumulative carbs by now, speed, and elapsed activity time on the same page. It is not a workout player, medical device, fueling alert system, or FIT recorder.
 
-After installing, add Aerobic Guard to a one-field, full-screen data page in
-the cycling activity profile you use. Smaller placements display `FULL SCREEN
-REQUIRED`. Open the data page once, then review its settings before your first
-ride. Settings are on the Edge itself, not in the Connect IQ phone app or
-Garmin Express.
+After installing, add Aerobic Guard to a one-field, full-screen data page in the cycling activity profile you use. Smaller placements display `FULL SCREEN REQUIRED`. Open the data page once, then review its settings before your first ride. Settings are on the Edge itself, not in the Connect IQ phone app or Garmin Express.
 
-On first start, Aerobic Guard can initialize power and HR guidance from your
-Garmin cycling profile. Cadence starts at 80-95 rpm and carbohydrates at 60
-g/h. These are editable starting points; the app never recalculates them later.
-Missing sensor values display as unavailable.
+On first start, Aerobic Guard can initialize power and HR guidance from your Garmin cycling profile - please adjust to your needs. Cadence starts at 80-95 rpm and carbohydrates at 60 g/h. These are editable starting points; the app never recalculates them later. Missing sensor values display as unavailable.
 
-The carbohydrate number is the cumulative target by the current elapsed ride
-time, updated every completed 10 minutes. It is not a reminder or log of what
-you consumed. Aerobic Guard is free and has no ads, accounts, networking, or
-analytics.
+The carbohydrate number is the cumulative target by the current elapsed ride time, updated every completed 10 minutes. It is not a reminder or log of what you consumed. Aerobic Guard is free and has no ads, accounts, networking, or analytics.
 
-Supported: Edge 540 / 540 Solar, Edge 550, Edge 840 / 840 Solar, Edge 850,
-Edge 1040 / 1040 Solar, and Edge 1050.
+Supported: Edge 540 / 540 Solar, Edge 550, Edge 840 / 840 Solar, Edge 850, Edge 1040 / 1040 Solar, and Edge 1050.
 
 User guide: https://github.com/dadul96/garmin-aerobic-guard-datafield/blob/main/docs/USER_GUIDE.md
-Privacy: https://github.com/dadul96/garmin-aerobic-guard-datafield/blob/main/PRIVACY.md
-Support: https://github.com/dadul96/garmin-aerobic-guard-datafield/issues
+
 
 ## Asset checklist
 
